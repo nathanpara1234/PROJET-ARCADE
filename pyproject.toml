@@ -1,0 +1,18 @@
+[project]
+name = "projet-arcade"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "arcade>=3.3.3",
+]
+[tool.ruff.lint]
+select = ["ANN"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.4",
+    "ty>=0.0.19",
+]

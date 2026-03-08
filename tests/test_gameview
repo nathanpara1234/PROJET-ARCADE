@@ -1,0 +1,18 @@
+import arcade  # ty:ignore[unresolved-import]
+from gameview import GameView
+from map import MAP_DECOUVERTE
+
+
+def test_collect_crystals(window: arcade.Window) -> None:
+    view = GameView(MAP_DECOUVERTE)# On crée une nouvelle vue de jeu avec la map découverte
+    window.show_view(view)
+    INITIAL_CRYSTAL_COUNT = 3# On sait que la map découverte contient exactement 3 cristaux
+    assert len(view.crystals) == INITIAL_CRYSTAL_COUNT# Verification que la vue contient bien 3 cristaux au départ
+    view.on_key_press(arcade.key.RIGHT, 0)# On simule l'appui sur la flèche droite
+    window.test(60)# On fait avancer le jeu pendant 60 frames
+    assert len(view.crystals) == INITIAL_CRYSTAL_COUNT - 1#Le joueur doit maintenant avoir ramassé le premier crista
+    view.on_key_release(arcade.key.RIGHT, 0)
+
+    view.on_key_press(arcade.key.UP, 0)#on teste maintenant en appuyant sur la fleche du haut
+    window.test(60)
+    assert len(view.crystals) == INITIAL_CRYSTAL_COUNT - 2

@@ -1,6 +1,7 @@
-import arcade
-from arcade import gl
-import pytest
+from map import MAP_DECOUVERTE
+import arcade  # ty:ignore[unresolved-import]
+from arcade import gl  # ty:ignore[unresolved-import]
+import pytest  # ty:ignore[unresolved-import]
 from gameview import GameView
 
 # This file must be named 'conftest.py' and be located in the 'tests/' directory.
@@ -71,7 +72,7 @@ def window(test_name: str) -> arcade.Window:
 
 
 def test_collect_crystals(window: arcade.Window) -> None:
-    view = GameView()
+    view = GameView(MAP_DECOUVERTE)
     window.show_view(view)
 
     INITIAL_CRYSTAL_COUNT = 3

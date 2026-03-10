@@ -3,12 +3,7 @@ import arcade  # ty: ignore[unresolved-import]
 
 from constants import *
 from textures import *
-from map import (
-    Map,
-    GridCell,
-    compute_horizontal_spinner_limits,
-    compute_vertical_spinner_limits,
-)
+from map import (Map,GridCell,compute_horizontal_spinner_limits,compute_vertical_spinner_limits,)
 
 
 # Transforme une coordonnée de grille en coordonnée pixel

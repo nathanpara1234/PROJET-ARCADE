@@ -1,10 +1,10 @@
 from typing import Final
-import arcade  # ty: ignore[unresolved-import]
+import arcade
 
 from constants import *
 from textures import *
 from map import (Map,GridCell,compute_horizontal_spinner_limits,compute_vertical_spinner_limits,)
-
+from map import SpinnerData
 
 # Transforme une coordonnée de grille en coordonnée pixel
 # Le sprite est placé au centre de la case
@@ -120,11 +120,11 @@ class GameView(arcade.View):
                     spinner = arcade.TextureAnimationSprite(
                         animation=ANIMATION_SPINNER,
                         scale=SCALE,
-                        center_x=grid_to_pixels(x),
+                        center_x=grid_to_pixels(),
                         center_y=grid_to_pixels(y),
                     )
 
-                    spinner.is_horizontal = False
+                    spinner.is_vertial = False
 
                     bottom_y, top_y = compute_vertical_spinner_limits(map, x, y)
 

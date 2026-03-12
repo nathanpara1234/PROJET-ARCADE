@@ -1,6 +1,6 @@
 import sys
 
-import arcade  # ty:ignore[unresolved-import]
+import arcade
 
 from constants import *
 from gameview import GameView

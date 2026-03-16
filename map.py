@@ -11,6 +11,7 @@ class GridCell(Enum):# Sachant qu'il y a que 3 possibilités, on utilise un Enum
     CRYSTAL = 2
     SPINNER_HORIZONTAL = 3
     SPINNER_VERTICAL= 4
+    HOLE = 5
 
 
 @dataclass(frozen=True) # on rend map immuable on empêche de modifier les attributs
@@ -142,6 +143,9 @@ def load_map_from_string(text: str) -> Map:
 
             elif char == "*":
                 row.append(GridCell.CRYSTAL)
+
+            elif char == "o":
+                row.append(GridCell.HOLE)
 
             elif char == "s":
                 row.append(GridCell.SPINNER_HORIZONTAL)

@@ -34,7 +34,7 @@ _overworld_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Til
 
 TEXTURE_GRASS: Final[arcade.Texture] = _overworld_grid[18*1 + 6]
 TEXTURE_BUSH: Final[arcade.Texture] = _overworld_grid[18*3 + 5]
-
+TEXTURE_HOLE: Final[arcade.Texture] = _overworld_grid[18*4 + 8]
 def _load_animation_strip(
     file: str,
     frame_count: int,

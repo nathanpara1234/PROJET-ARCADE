@@ -13,10 +13,10 @@ class Direction(Enum):
 
 class Player(arcade.TextureAnimationSprite):
     direction : Direction
-    up_pressed : bool
     down_pressed: bool
-    right_pressed: bool
+    up_pressed : bool
     left_pressed: bool
+    right_pressed: bool
     score: int
 
     def __init__(self,start_x: int, start_y: int) -> None:
@@ -50,3 +50,33 @@ class Player(arcade.TextureAnimationSprite):
         elif self.down_pressed and not self.up_pressed:
             self.change_y = -PLAYER_MOVEMENT_SPEED
             self.direction = Direction.South
+
+    def is_moving (self) ->bool:
+        return self.change_x != 0 or self.change_y != 0
+
+
+    def animation_orientation (self) -> None:
+
+        if self.direction == Direction.South:
+            if self.is_moving():
+                self.animation = ANIMATION_PLAYER_RUN_DOWN
+            else:
+                self.animation = ANIMATION_PLAYER_IDLE_DOWN
+
+        elif self.direction == Direction.North:
+            if self.is_moving():
+                self.animation = ANIMATION_PLAYER_RUN_UP
+            else:
+                self.animation = ANIMATION_PLAYER_IDLE_UP
+
+        elif self.direction == Direction.West:
+            if self.is_moving():
+                self.animation = ANIMATION_PLAYER_RUN_LEFT
+            else:
+                self.animation = ANIMATION_PLAYER_IDLE_LEFT
+
+        elif self.direction == Direction.East:
+            if self.is_moving():
+                self.animation = ANIMATION_PLAYER_RUN_RIGHT
+            else:
+                self.animation = ANIMATION_PLAYER_IDLE_RIGHT

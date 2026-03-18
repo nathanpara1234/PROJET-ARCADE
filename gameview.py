@@ -131,11 +131,11 @@ class GameView(arcade.View):
 
                 elif cell == GridCell.HOLE:
                     hole = arcade.Sprite(
-                    TEXTURE_HOLE,
-                    scale=SCALE,
-                    center_x=grid_to_pixels(x),
-                    center_y=grid_to_pixels(y),
-                )
+                        TEXTURE_HOLE,
+                        scale=SCALE,
+                        center_x=grid_to_pixels(x),
+                        center_y=grid_to_pixels(y),
+                    )
                     self.holes.append(hole)
 
         self.player = Player (
@@ -167,9 +167,12 @@ class GameView(arcade.View):
         with self.camera.activate():
             self.grounds.draw()
             self.walls.draw()
+            self.holes.draw()
             self.crystals.draw()
             self.spinners.draw()
             self.player_list.draw()
+            self.player.update_animation()
+            self.player.animation_orientation()
         with self.camera_score.activate():
             self.score_batch.draw()
 
@@ -179,6 +182,7 @@ class GameView(arcade.View):
         self.player.update_animation()
         self.crystals.update_animation()
         self.spinners.update_animation()
+
 
         for spinner in self.spinners:
             spinner.center_x += spinner.change_x

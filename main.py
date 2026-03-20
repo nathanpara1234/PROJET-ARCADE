@@ -1,5 +1,5 @@
 import sys
-import arcade
+import arcade  # ty:ignore[unresolved-import]
 from constants import *
 from gameview import GameView
 from map import load_map_from_file, InvalidMapFileException

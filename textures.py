@@ -1,5 +1,5 @@
 from typing import Final
-import arcade
+import arcade  # ty:ignore[unresolved-import]
 
 ORIG_TILE_SIZE = (16, 16)
 
@@ -71,3 +71,24 @@ CRYSTALS: Final[arcade.TextureAnimation] = \
 
 ANIMATION_SPINNER: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Spinner_Sprites/spinner_run_attack_anim_all_dir_strip_8.png",3)
+ANIMATION_PLAYER_IDLE_UP: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_up_anim_strip_6.png", 6)
+
+ANIMATION_PLAYER_IDLE_LEFT: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_left_anim_strip_6.png", 6)
+
+ANIMATION_PLAYER_IDLE_RIGHT: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_right_anim_strip_6.png", 6)
+ANIMATION_BOOMERANG: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/provided/boomerang-sheet.png",8,frame_duration=25,)
+ANIMATION_SWORD_DOWN: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_down_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+
+ANIMATION_SWORD_UP: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_up_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+
+ANIMATION_SWORD_LEFT: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_left_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+
+ANIMATION_SWORD_RIGHT: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_right_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)

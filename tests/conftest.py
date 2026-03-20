@@ -1,7 +1,7 @@
 from map import MAP_DECOUVERTE
-import arcade
-from arcade import gl
-import pytest
+import arcade  # ty:ignore[unresolved-import]
+from arcade import gl  # ty:ignore[unresolved-import]
+import pytest  # ty:ignore[unresolved-import]
 from gameview import GameView
 
 # This file must be named 'conftest.py' and be located in the 'tests/' directory.

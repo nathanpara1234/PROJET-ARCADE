@@ -1,5 +1,5 @@
 from typing import Final
-import arcade  # ty:ignore[unresolved-import]
+import arcade  
 
 ORIG_TILE_SIZE = (16, 16)
 

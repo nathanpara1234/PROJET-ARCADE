@@ -1,7 +1,7 @@
 from math import sqrt
 from typing import Final
-import arcade  # ty:ignore[unresolved-import]
-from pyglet.graphics import Batch  # ty:ignore[unresolved-import]
+import arcade  
+from pyglet.graphics import Batch
 
 # Importe les constantes globales du jeu :
 # taille des tuiles, dimensions max de fenêtre, échelle, etc.

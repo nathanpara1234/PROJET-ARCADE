@@ -1,5 +1,5 @@
 # TEST 1 : TROU SEPARER (DOIT MARCHER)
-import arcade  # ty:ignore[unresolved-import]
+import arcade  
 from gameview import GameView
 from map import Map
 

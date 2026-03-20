@@ -1,5 +1,5 @@
 from enum import Enum
-import arcade  # ty:ignore[unresolved-import]
+import arcade  
 
 from constants import *
 from textures import *

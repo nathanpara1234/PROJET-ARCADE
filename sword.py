@@ -1,4 +1,4 @@
-import arcade  # ty:ignore[unresolved-import]
+import arcade  
 
 from textures import (
     ANIMATION_SWORD_DOWN,

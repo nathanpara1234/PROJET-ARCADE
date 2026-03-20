@@ -1,7 +1,6 @@
 from enum import Enum
 from math import sqrt
-import arcade  # ty:ignore[unresolved-import]
-
+import arcade 
 from constants import *
 from textures import *
 from player import Direction, Player

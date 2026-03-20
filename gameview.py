@@ -275,6 +275,21 @@ class GameView(arcade.View):
         )
 
         # Déplacement automatique des spinners
+    def on_key_release(self, symbol: int, modifiers: int) -> None:
+        match symbol:
+            case arcade.key.UP:
+                self.player.up_pressed = False
+            case arcade.key.DOWN:
+                self.player.down_pressed = False
+            case arcade.key.LEFT:
+                self.player.left_pressed = False
+            case arcade.key.RIGHT:
+                self.player.right_pressed = False
+
+        # Recalcule le mouvement du joueur après une touche relâchée
+        self.player.player_move()
+
+
         for spinner in self.spinners:
             spinner.center_x += spinner.change_x
             spinner.center_y += spinner.change_y
@@ -380,18 +395,4 @@ class GameView(arcade.View):
                     self.active_weapon = WeaponType.BOOMERANG
 
         # Recalcule le mouvement du joueur après une touche pressée
-        self.player.player_move()
-
-    def on_key_release(self, symbol: int, modifiers: int) -> None:
-        match symbol:
-            case arcade.key.UP:
-                self.player.up_pressed = False
-            case arcade.key.DOWN:
-                self.player.down_pressed = False
-            case arcade.key.LEFT:
-                self.player.left_pressed = False
-            case arcade.key.RIGHT:
-                self.player.right_pressed = False
-
-        # Recalcule le mouvement du joueur après une touche relâchée
         self.player.player_move()

@@ -24,8 +24,9 @@ class Player(arcade.TextureAnimationSprite):
     direction: Direction
     up_pressed: bool
     down_pressed: bool
-    right_pressed: bool
+    up_pressed : bool
     left_pressed: bool
+    right_pressed: bool
     score: int
 
     def __init__(self, start_x: int, start_y: int) -> None:

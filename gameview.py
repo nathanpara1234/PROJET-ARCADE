@@ -1,25 +1,15 @@
 from math import sqrt
 from typing import Final
-import arcade  
+import arcade
 from pyglet.graphics import Batch
-
-# Importe les constantes globales du jeu :
-# taille des tuiles, dimensions max de fenêtre, échelle, etc.
+from bat import Bat
 from constants import *
-
-# Importe les textures et animations utilisées pour les sprites
 from textures import *
-
-# Classes du joueur et des armes
 from player import Player
 from boomerang import Boomerang
 from enum import Enum
-from sword import Sword
+from sword import *
 
-# Éléments liés à la carte :
-# - la map elle-même
-# - le type de case
-# - les fonctions pour calculer les limites de déplacement des spinners
 from map import (
     Map,
     GridCell,
@@ -42,12 +32,10 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
     min_pos: int
     max_pos: int
 
-
 # Enum pour savoir quelle arme est actuellement équipée
 class WeaponType(Enum):
     BOOMERANG = 1
     SWORD = 2
-
 
 # Vue principale du jeu
 class GameView(arcade.View):
@@ -67,6 +55,7 @@ class GameView(arcade.View):
     sword_list: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     sword: Final[Sword]
     active_weapon: WeaponType
+    bats: Final[arcade.SpriteList[Bat]]
 
     player: Final[Player]
 
@@ -93,7 +82,7 @@ class GameView(arcade.View):
         self.world_height = map.height * TILE_SIZE
 
         self.holes = arcade.SpriteList()
-
+        self.bats = arcade.SpriteList()
         # Initialisation du boomerang
         self.boomerang_list = arcade.SpriteList()
         self.boomerang = Boomerang()
@@ -130,7 +119,7 @@ class GameView(arcade.View):
                 # Si la case contient un cristal, on crée un sprite animé
                 elif cell == GridCell.CRYSTAL:
                     crystal = arcade.TextureAnimationSprite(
-                        animation=CRYSTALS,
+                        animation=ANIMATION_CRYSTALS,
                         scale=SCALE,
                         center_x=grid_to_pixels(x),
                         center_y=grid_to_pixels(y),
@@ -191,6 +180,13 @@ class GameView(arcade.View):
                     )
                     self.holes.append(hole)
 
+                elif cell == GridCell.BAT:
+                    bat = Bat(
+                        start_x=grid_to_pixels(x),
+                        start_y=grid_to_pixels(y),
+                    )
+                    self.bats.append(bat)
+
         # Création du joueur à sa position de départ sur la map
         self.player = Player(
             grid_to_pixels(map.player_start_x),
@@ -249,9 +245,10 @@ class GameView(arcade.View):
             self.crystals.draw()
             self.spinners.draw()
             self.player_list.draw()
+            self.player.update_animation()
             self.boomerang_list.draw()
             self.sword_list.draw()
-
+            self.bats.draw()
         with self.camera_score.activate():
             self.score_batch.draw()
 
@@ -273,22 +270,9 @@ class GameView(arcade.View):
             self.player,
             self.crystal_sound
         )
-
-        # Déplacement automatique des spinners
-    def on_key_release(self, symbol: int, modifiers: int) -> None:
-        match symbol:
-            case arcade.key.UP:
-                self.player.up_pressed = False
-            case arcade.key.DOWN:
-                self.player.down_pressed = False
-            case arcade.key.LEFT:
-                self.player.left_pressed = False
-            case arcade.key.RIGHT:
-                self.player.right_pressed = False
-
-        # Recalcule le mouvement du joueur après une touche relâchée
-        self.player.player_move()
-
+        for bat in self.bats:
+            bat.bat_move()
+            bat.update_animation()
 
         for spinner in self.spinners:
             spinner.center_x += spinner.change_x
@@ -310,7 +294,8 @@ class GameView(arcade.View):
                     spinner.center_y = spinner.min_pos
                     spinner.change_y = 3
 
-        # Gestion de la caméra : elle suit le joueur
+        # Déplacement automatique des spinners
+          # Gestion de la caméra : elle suit le joueur
         # tout en restant dans les limites de la map
         camera_x = self.player.center_x
         if self.player.center_x < self.window.width / 2:
@@ -350,6 +335,20 @@ class GameView(arcade.View):
             new_game_view = GameView(self.map)
             self.window.show_view(new_game_view)
 
+        collision_bats = arcade.check_for_collision_with_list(self.player, self.bats)
+        if collision_bats:
+            new_game_view = GameView(self.map)
+            self.window.show_view(new_game_view)
+
+        collision_boomerang_bat = arcade.check_for_collision_with_list(self.boomerang, self.bats)
+        if collision_boomerang_bat:
+                bat.remove_from_sprite_lists()
+
+        collision_sword_bat = arcade.check_for_collision_with_list(self.sword, self.bats)
+        if collision_sword_bat:
+                bat.remove_from_sprite_lists()
+
+
         # Si le joueur est suffisamment proche du centre d’un trou, la partie recommence
         for hole in self.holes:
             if (sqrt((self.player.center_x - hole.center_x) ** 2 + (self.player.center_y - hole.center_y) ** 2)) <= 16:
@@ -365,7 +364,6 @@ class GameView(arcade.View):
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         match symbol:
 
-            # Gestion des directions du joueur
             case arcade.key.UP:
                 self.player.up_pressed = True
             case arcade.key.DOWN:
@@ -374,13 +372,10 @@ class GameView(arcade.View):
                 self.player.left_pressed = True
             case arcade.key.RIGHT:
                 self.player.right_pressed = True
-
-            # ESC : recommence la partie
             case arcade.key.ESCAPE:
                 new_game_view = GameView(self.map)
                 self.window.show_view(new_game_view)
-
-            # D : utilise l’arme active
+                # D : utilise l’arme active
             case arcade.key.D:
                 if self.active_weapon == WeaponType.BOOMERANG:
                     self.boomerang.launch(self.player)
@@ -395,4 +390,17 @@ class GameView(arcade.View):
                     self.active_weapon = WeaponType.BOOMERANG
 
         # Recalcule le mouvement du joueur après une touche pressée
+        self.player.player_move()
+
+
+    def on_key_release(self, symbol: int, modifiers: int) -> None:
+        match symbol:
+            case arcade.key.UP:
+                self.player.up_pressed = False
+            case arcade.key.DOWN:
+                self.player.down_pressed = False
+            case arcade.key.LEFT:
+                self.player.left_pressed = False
+            case arcade.key.RIGHT:
+                self.player.right_pressed = False
         self.player.player_move()

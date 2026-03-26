@@ -12,6 +12,7 @@ class GridCell(Enum):# Sachant qu'il y a que 3 possibilités, on utilise un Enum
     SPINNER_HORIZONTAL = 3
     SPINNER_VERTICAL= 4
     HOLE = 5
+    BAT = 6
 
 
 @dataclass(frozen=True) # on rend map immuable on empêche de modifier les attributs
@@ -160,6 +161,8 @@ def load_map_from_string(text: str) -> Map:
                 player_y = height - 1 - y_in_file
                 player_positions.append((player_x, player_y))
                 row.append(GridCell.GRASS)
+            elif char =="v":
+                row.append(GridCell.BAT)
 
             else:
                 raise InvalidMapFileException(f"Caractère invalide dans la carte : {char!r}")

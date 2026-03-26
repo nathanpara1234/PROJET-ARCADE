@@ -1,4 +1,4 @@
-import arcade  
+import arcade
 
 from textures import (
     ANIMATION_SWORD_DOWN,

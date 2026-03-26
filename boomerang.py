@@ -1,10 +1,10 @@
+from bat import Bat
 from enum import Enum
 from math import sqrt
-import arcade 
+import arcade
 from constants import *
 from textures import *
 from player import Direction, Player
-
 
 class BoomerangState(Enum):
     INACTIVE = 1
@@ -89,12 +89,8 @@ class Boomerang(arcade.TextureAnimationSprite):
         self.change_y = 0
         self.travelled_distance = 0
 
-    def update_boomerang(
-        self,
-        player: Player,
-        walls: arcade.SpriteList[arcade.Sprite],
-        enemies: arcade.SpriteList,
-    ) -> None:
+
+    def update_boomerang(self,player: Player,walls: arcade.SpriteList[arcade.Sprite],enemies:arcade.SpriteList) -> None:
         """Met à jour le boomerang selon son état.
 
         - En lancement : il avance en ligne droite.

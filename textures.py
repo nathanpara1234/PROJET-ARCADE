@@ -1,7 +1,8 @@
 from typing import Final
-import arcade  
+import arcade
 
 ORIG_TILE_SIZE = (16, 16)
+SWORD_TILE_SIZE = (96,96)
 
 def _load_grid(
     file: str,
@@ -80,7 +81,7 @@ ANIMATION_PLAYER_RUN_LEFT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_left_anim_strip_6.png", 6)
 ANIMATION_PLAYER_RUN_RIGHT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_right_anim_strip_6.png", 6)
-CRYSTALS: Final[arcade.TextureAnimation] = \
+ANIMATION_CRYSTALS: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/crystal_item_anim_strip_6.png", 6)
 
 ANIMATION_SPINNER: Final[arcade.TextureAnimation] = \
@@ -96,13 +97,15 @@ ANIMATION_PLAYER_IDLE_RIGHT: Final[arcade.TextureAnimation] = \
 ANIMATION_BOOMERANG: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/provided/boomerang-sheet.png",8,frame_duration=25,)
 ANIMATION_SWORD_DOWN: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_down_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_down_anim_strip_6.png",6,frame_duration=50,tile_size = SWORD_TILE_SIZE)
 
 ANIMATION_SWORD_UP: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_up_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_up_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
 
 ANIMATION_SWORD_LEFT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_left_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_left_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
 
 ANIMATION_SWORD_RIGHT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_right_anim_strip_6.png",6,frame_duration=50,tile_size=(48, 48),)
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_right_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
+ANIMATION_BAT: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkbat_Sprites/pinkbat_idle_left_anim_strip_5.png",6)

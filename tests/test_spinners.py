@@ -6,10 +6,11 @@ from textwrap import dedent
 # compute_vertical_spinner_limits : calcule les limites bas/haut
 from map import (
     load_map_from_string,
+)
+from enemies import (
     compute_horizontal_spinner_limits,
     compute_vertical_spinner_limits,
 )
-
 
 def test_horizontal_spinner_limits() -> None:# Imagination d'une petite map directement dans le test
     text = dedent("""\

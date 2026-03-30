@@ -30,7 +30,6 @@ def main() -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-
     # Lancement du jeu
     arcade.run()
 

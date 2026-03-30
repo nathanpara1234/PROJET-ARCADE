@@ -1,5 +1,5 @@
 from enum import Enum
-import arcade  
+import arcade
 
 from constants import *
 from textures import *
@@ -73,12 +73,6 @@ class Player(arcade.TextureAnimationSprite):
         elif self.down_pressed and not self.up_pressed:
             self.change_y = -PLAYER_MOVEMENT_SPEED
 
-        # --- 3. Mise à jour de la direction regardée ---
-        # On respecte l'ordre demandé par la consigne :
-        # bas > haut > gauche > droite
-        #
-        # Donc si plusieurs touches sont enfoncées en même temps,
-        # cet ordre décide de la direction affichée.
         if self.down_pressed:
             self.direction = Direction.SOUTH
         elif self.up_pressed:

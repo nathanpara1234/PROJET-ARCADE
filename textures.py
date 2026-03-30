@@ -2,7 +2,7 @@ from typing import Final
 import arcade
 
 ORIG_TILE_SIZE = (16, 16)
-SWORD_TILE_SIZE = (96,96)
+SWORD_TILE_SIZE = (48,48)
 
 def _load_grid(
     file: str,

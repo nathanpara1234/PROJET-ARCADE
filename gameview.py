@@ -2,19 +2,21 @@ from math import sqrt
 from typing import Final
 import arcade
 from pyglet.graphics import Batch
-from bat import Bat
+from enemies import (
+    Bat,
+    SpinnerSprite,
+    compute_horizontal_spinner_limits,
+    compute_vertical_spinner_limits,
+    )
 from constants import *
 from textures import *
 from player import Player
-from boomerang import Boomerang
 from enum import Enum
-from sword import *
+from weapons import *
 
 from map import (
     Map,
     GridCell,
-    compute_horizontal_spinner_limits,
-    compute_vertical_spinner_limits,
 )
 
 # Transforme une coordonnée de grille en coordonnée pixel.
@@ -22,15 +24,6 @@ from map import (
 def grid_to_pixels(i: int) -> int:
     return i * TILE_SIZE + (TILE_SIZE // 2)
 
-
-# Sprite spécial pour les ennemis "spinner"
-# On lui ajoute :
-# - un axe de déplacement (horizontal ou vertical)
-# - une position min et max à ne pas dépasser
-class SpinnerSprite(arcade.TextureAnimationSprite):
-    is_horizontal: bool
-    min_pos: int
-    max_pos: int
 
 # Enum pour savoir quelle arme est actuellement équipée
 class WeaponType(Enum):
@@ -245,12 +238,16 @@ class GameView(arcade.View):
             self.crystals.draw()
             self.spinners.draw()
             self.player_list.draw()
-            self.player.update_animation()
             self.boomerang_list.draw()
             self.sword_list.draw()
             self.bats.draw()
         with self.camera_score.activate():
             self.score_batch.draw()
+
+    def restart_if_collision(self, enemies: arcade.SpriteList[arcade.TextureAnimationSprite]) -> None:
+        if arcade.check_for_collision_with_list(self.player, enemies):
+            new_game_view = GameView(self.map)
+            self.window.show_view(new_game_view)
 
     def on_update(self, delta_time: float) -> None:
         # Met à jour la physique du joueur
@@ -258,41 +255,26 @@ class GameView(arcade.View):
 
         # Met à jour les animations
         self.player.update_animation()
+        self.restart_if_collision(enemies)
+        self.restart_if_collision(self.bats)
         self.crystals.update_animation()
         self.spinners.update_animation()
+        self.bats.update_animation()
         self.boomerang.update_animation()
-        self.boomerang.update_boomerang(self.player, self.walls, self.spinners)
+        self.boomerang.update_boomerang(self.player, self.walls, enemies)
         self.sword.update_animation()
         self.sword.update_sword(
             delta_time,
-            self.spinners,
+            enemies,
             self.crystals,
             self.player,
             self.crystal_sound
         )
         for bat in self.bats:
             bat.bat_move()
-            bat.update_animation()
 
         for spinner in self.spinners:
-            spinner.center_x += spinner.change_x
-            spinner.center_y += spinner.change_y
-
-            if spinner.is_horizontal:
-                # Le spinner inverse sa direction s’il atteint une borne
-                if spinner.center_x >= spinner.max_pos:
-                    spinner.center_x = spinner.max_pos
-                    spinner.change_x = -3
-                elif spinner.center_x <= spinner.min_pos:
-                    spinner.center_x = spinner.min_pos
-                    spinner.change_x = 3
-            else:
-                if spinner.center_y >= spinner.max_pos:
-                    spinner.center_y = spinner.max_pos
-                    spinner.change_y = -3
-                elif spinner.center_y <= spinner.min_pos:
-                    spinner.center_y = spinner.min_pos
-                    spinner.change_y = 3
+            spinner.spinner_move()
 
         # Déplacement automatique des spinners
           # Gestion de la caméra : elle suit le joueur
@@ -328,25 +310,6 @@ class GameView(arcade.View):
                 font_size=18,
                 batch=self.score_batch
             )
-
-        # Si le joueur touche un spinner, la partie recommence
-        collision_spinners = arcade.check_for_collision_with_list(self.player, self.spinners)
-        if collision_spinners:
-            new_game_view = GameView(self.map)
-            self.window.show_view(new_game_view)
-
-        collision_bats = arcade.check_for_collision_with_list(self.player, self.bats)
-        if collision_bats:
-            new_game_view = GameView(self.map)
-            self.window.show_view(new_game_view)
-
-        collision_boomerang_bat = arcade.check_for_collision_with_list(self.boomerang, self.bats)
-        if collision_boomerang_bat:
-                bat.remove_from_sprite_lists()
-
-        collision_sword_bat = arcade.check_for_collision_with_list(self.sword, self.bats)
-        if collision_sword_bat:
-                bat.remove_from_sprite_lists()
 
 
         # Si le joueur est suffisamment proche du centre d’un trou, la partie recommence

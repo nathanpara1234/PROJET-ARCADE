@@ -12,7 +12,7 @@ x            xxxxxxxxxx        x       x
 x         *                    x   *   x
 x      S              S     *  x       x
 x  *      o      *                     x
-x       v o                      o     x
+x       v o       b              o     x
 x     xx     s        xs               x
 x  P   v  *           x       *        x
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

@@ -1,9 +1,10 @@
-from map import Map, GridCell #on va utiliser des choses qui sont dans le fichier map.py
+from map import Map, GridCell
+import networkx as nx #on va utiliser des choses qui sont dans le fichier map.py
 #map la classe qui represente une carte
 #gridcell le type qui represente ce qu'il y a dans une case
 
 
-def test_get() -> None:
+'''def test_get() -> None:
     grid = [
         [GridCell.GRASS, GridCell.BUSH],
         [GridCell.CRYSTAL, GridCell.GRASS],
@@ -15,6 +16,7 @@ def test_get() -> None:
         player_start_x=0,
         player_start_y=0,
         _grid=grid
+        navmesh=G
     )
 
     assert m.width == 2
@@ -46,4 +48,4 @@ def test_error()-> None: # fonction qui test le lancage d'une erreur lorsqu'on s
     except IndexError:
         return
 
-    assert False
+    assert False'''

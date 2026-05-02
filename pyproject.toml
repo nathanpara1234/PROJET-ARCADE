@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "arcade>=3.3.3",
+    "arcade>=3.0.2",
+    "networkx>=3.6.1",
+    "types-networkx>=3.6.1.20260402",
 ]
 [tool.ruff.lint]
 select = ["ANN"]

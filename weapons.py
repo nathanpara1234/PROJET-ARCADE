@@ -194,18 +194,18 @@ class Sword(Weapon):
         if player.direction == Direction.NORTH:
             self.animation = ANIMATION_SWORD_UP
             self.center_x = player.center_x
-            self.center_y = player.center_y + 0.2*TILE_SIZE
+            self.center_y = player.center_y + 0.3*TILE_SIZE
         elif player.direction == Direction.SOUTH:
             self.animation = ANIMATION_SWORD_DOWN
             self.center_x = player.center_x
-            self.center_y = player.center_y - 0.2*TILE_SIZE
+            self.center_y = player.center_y - 0.3*TILE_SIZE
         elif player.direction == Direction.WEST:
             self.animation = ANIMATION_SWORD_LEFT
-            self.center_x = player.center_x - 0.2*TILE_SIZE
+            self.center_x = player.center_x - 0.3*TILE_SIZE
             self.center_y = player.center_y
         elif player.direction == Direction.EAST:
             self.animation = ANIMATION_SWORD_RIGHT
-            self.center_x = player.center_x + 0.2*TILE_SIZE
+            self.center_x = player.center_x + 0.3*TILE_SIZE
             self.center_y = player.center_y
 
         # Redémarrer l'animation depuis le début

@@ -12,3 +12,5 @@ MAX_WINDOW_HEIGHT = 14 * TILE_SIZE
 
 PLAYER_MOVEMENT_SPEED = 4
 """Speed of the player, in pixels per frame."""
+
+DRAW_NAVMESHES = True

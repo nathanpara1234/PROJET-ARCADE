@@ -1,10 +1,12 @@
 from math import sqrt
+import networkx as nx
 from typing import Final
 import arcade
 from pyglet.graphics import Batch
 from enemies import (
     Bat,
     SpinnerSprite,
+    Blob,
     compute_horizontal_spinner_limits,
     compute_vertical_spinner_limits,
     )
@@ -49,7 +51,7 @@ class GameView(arcade.View):
     sword: Final[Sword]
     active_weapon: WeaponType
     bats: Final[arcade.SpriteList[Bat]]
-
+    blobs: Final[arcade.SpriteList[Blob]]
     player: Final[Player]
 
     def __init__(self, map: Map) -> None:
@@ -76,6 +78,7 @@ class GameView(arcade.View):
 
         self.holes = arcade.SpriteList()
         self.bats = arcade.SpriteList()
+        self.blobs = arcade.SpriteList()
         # Initialisation du boomerang
         self.boomerang_list = arcade.SpriteList()
         self.boomerang = Boomerang()
@@ -180,6 +183,13 @@ class GameView(arcade.View):
                     )
                     self.bats.append(bat)
 
+                elif cell == GridCell.BLOB:
+                    blob = Blob (
+                    start_x=grid_to_pixels(x),
+                    start_y=grid_to_pixels(y),
+                    )
+                    self.blobs.append(blob)
+
         # Création du joueur à sa position de départ sur la map
         self.player = Player(
             grid_to_pixels(map.player_start_x),
@@ -191,13 +201,10 @@ class GameView(arcade.View):
         self.sword_list = arcade.SpriteList()
         self.sword = Sword()
         self.sword_list.append(self.sword)
-
         # Arme équipée au début
         self.active_weapon = WeaponType.BOOMERANG
-
         # Moteur physique simple : le joueur est bloqué par les murs
         self.physics_engine = arcade.PhysicsEngineSimple(self.player, self.walls)
-
         # Batch pour afficher plusieurs textes de HUD efficacement
         self.score_batch = Batch()
 
@@ -211,15 +218,15 @@ class GameView(arcade.View):
             batch=self.score_batch
         )
 
-        # Texte de l’arme actuellement équipée
         self.weapon_text = arcade.Text(
-            text="Boomerang",
+            text="Arme : Boomerang", # Texte par défaut
             x=20,
             y=self.window.height - 70,
             color=arcade.color.WHITE,
             font_size=18,
             batch=self.score_batch
         )
+
 
     def on_show_view(self) -> None:
         # Ajuste la taille de la fenêtre à la taille du monde,
@@ -241,44 +248,56 @@ class GameView(arcade.View):
             self.boomerang_list.draw()
             self.sword_list.draw()
             self.bats.draw()
+            self.blobs.draw()
+            '''if DRAW_NAVMESHES:
+                the_navmesh = self.map.navmesh # On récupère ton graphe
+
+            # 1. Dessin des points (nœuds) et des segments (arêtes)
+            nodes = list(the_navmesh.nodes)
+            for node in nodes:
+                # Ton 'node' est déjà un tuple (x, y) en pixels
+                arcade.draw_circle_filled(node[0], node[1], 2, arcade.color.BLACK)
+
+                for neighbor in the_navmesh.neighbors(node):
+                    # Dessine la ligne entre le point et son voisin
+                    arcade.draw_line(node[0], node[1], neighbor[0], neighbor[1], arcade.color.BLACK, 2)
+
+            # 2. Dessin du chemin rouge pour chaque Blob
+            for slime in self.blobs:
+                # On vérifie si l'ennemi a un chemin calculé
+                if hasattr(slime, 'path') and slime.path:
+                    # On s'assure qu'il y a au moins 2 points pour tracer une ligne
+                    if len(slime.path) >= 2:
+                        arcade.draw_line_strip(slime.path, arcade.color.RED, 2)'''
         with self.camera_score.activate():
             self.score_batch.draw()
 
-    def restart_if_collision(self, enemies: arcade.SpriteList[arcade.TextureAnimationSprite]) -> None:
+    def restart_if_collision(self, enemies: arcade.SpriteList) -> None:
+        # 1. Test des ennemis (chauve-souris, spinners)
         if arcade.check_for_collision_with_list(self.player, enemies):
             new_game_view = GameView(self.map)
             self.window.show_view(new_game_view)
+            return # On s'arrête là si on a déjà touché un ennemi
 
-    def on_update(self, delta_time: float) -> None:
-        # Met à jour la physique du joueur
-        self.physics_engine.update()
+        # 2. Test des trous
+        for hole in self.holes:
+            distance = sqrt((self.player.center_x - hole.center_x) ** 2 + (self.player.center_y - hole.center_y) ** 2)
+            if distance <= 16:
+                new_game_view = GameView(self.map)
+                self.window.show_view(new_game_view)
+                return
 
-        # Met à jour les animations
-        self.player.update_animation()
-        self.restart_if_collision(enemies)
-        self.restart_if_collision(self.bats)
-        self.crystals.update_animation()
-        self.spinners.update_animation()
-        self.bats.update_animation()
-        self.boomerang.update_animation()
-        self.boomerang.update_boomerang(self.player, self.walls, enemies)
-        self.sword.update_animation()
-        self.sword.update_sword(
-            delta_time,
-            enemies,
-            self.crystals,
-            self.player,
-            self.crystal_sound
-        )
-        for bat in self.bats:
-            bat.bat_move()
+    def update_weapon_text(self) -> None:
+        #"""Met à jour le texte de l'arme affiché à l'écran."""
+        if self.active_weapon == WeaponType.BOOMERANG:
+            self.weapon_text.text = "Arme : Boomerang"
+        else:
+            self.weapon_text.text = "Arme : Épée"
 
-        for spinner in self.spinners:
-            spinner.spinner_move()
-
-        # Déplacement automatique des spinners
           # Gestion de la caméra : elle suit le joueur
         # tout en restant dans les limites de la map
+
+    def update_camera_position(self) -> None :
         camera_x = self.player.center_x
         if self.player.center_x < self.window.width / 2:
             camera_x = self.window.width / 2
@@ -293,6 +312,49 @@ class GameView(arcade.View):
 
         self.camera.position = (camera_x, camera_y)
 
+    def on_update(self, delta_time: float) -> None:
+        enemies = arcade.SpriteList()
+        for bat in self.bats:
+            enemies.append(bat)
+        for blob in self.blobs:
+            enemies.append(blob)
+        for spinner in self.spinners:
+            enemies.append(spinner)
+
+        # Met à jour la physique du joueur
+        self.physics_engine.update()
+        # Met à jour les animations
+        self.player.update_animation()
+        self.player.player_move()
+        self.update_camera_position()
+        self.restart_if_collision(enemies)
+        self.crystals.update_animation()
+        self.spinners.update_animation()
+        self.bats.update_animation()
+        self.blobs.update_animation()
+        self.boomerang.update_animation()
+        self.boomerang.update_boomerang(self.player, self.walls, enemies)
+        self.sword.update_animation()
+        self.sword.update_sword(
+            delta_time,
+            enemies,
+            self.crystals,
+            self.player,
+            self.crystal_sound
+        )
+        for bat in self.bats:
+            bat.bat_move()
+        for spinner in self.spinners:
+            spinner.spinner_move()
+        for blob in self.blobs:
+            distance = sqrt((blob.center_x - self.player.center_x)**2 + (blob.center_y - self.player.center_y)**2)
+
+
+            if distance <= 5 * TILE_SIZE and arcade.has_line_of_sight(blob.position, self.player.position, self.walls):
+                blob.blob_move(self.map.navmesh, self.player.position)
+            else:
+                blob.blob_move(self.map.navmesh, None)
+
         # Détection de collision entre le joueur et les cristaux
         collision_crystals = arcade.check_for_collision_with_list(self.player, self.crystals)
         for crystal in collision_crystals:
@@ -301,28 +363,8 @@ class GameView(arcade.View):
             self.player.score += 1
             self.score_text.text = f"{self.player.score}"
 
-            # Remet le texte de l’arme (ici ce passage pourrait être simplifié)
-            self.weapon_text = arcade.Text(
-                text="Boomerang",
-                x=20,
-                y=self.window.height - 70,
-                color=arcade.color.WHITE,
-                font_size=18,
-                batch=self.score_batch
-            )
+            # Remet le texte de l’arme (ici ce passage pourrait être simplifié
 
-
-        # Si le joueur est suffisamment proche du centre d’un trou, la partie recommence
-        for hole in self.holes:
-            if (sqrt((self.player.center_x - hole.center_x) ** 2 + (self.player.center_y - hole.center_y) ** 2)) <= 16:
-                new_game_view = GameView(self.map)
-                self.window.show_view(new_game_view)
-
-        # Mise à jour du texte affichant l’arme en cours
-        if self.active_weapon == WeaponType.BOOMERANG:
-            self.weapon_text.text = "Boomerang"
-        else:
-            self.weapon_text.text = "Sword"
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         match symbol:
@@ -351,9 +393,10 @@ class GameView(arcade.View):
                     self.active_weapon = WeaponType.SWORD
                 else:
                     self.active_weapon = WeaponType.BOOMERANG
-
+        self.update_weapon_text()
         # Recalcule le mouvement du joueur après une touche pressée
         self.player.player_move()
+
 
 
     def on_key_release(self, symbol: int, modifiers: int) -> None:

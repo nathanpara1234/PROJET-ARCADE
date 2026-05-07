@@ -32,10 +32,18 @@ def _load_grid(
     return spritesheet.get_texture_grid(tile_size, columns, columns * rows)
 
 _overworld_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)
+# Les portails viennent du tileset du donjon, donc on charge aussi cette grille.
+_dungeon_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png", 13, 12)
 
 TEXTURE_GRASS: Final[arcade.Texture] = _overworld_grid[18*1 + 6]
 TEXTURE_BUSH: Final[arcade.Texture] = _overworld_grid[18*3 + 5]
 TEXTURE_HOLE: Final[arcade.Texture] = _overworld_grid[18*4 + 8]
+# Textures des interrupteurs fournies par Arcade.
+TEXTURE_SWITCH_OFF: Final[arcade.Texture] = arcade.load_texture(":resources:/images/tiles/leverLeft.png")
+TEXTURE_SWITCH_ON: Final[arcade.Texture] = arcade.load_texture(":resources:/images/tiles/leverRight.png")
+# Textures des portails: une ouverte et une fermee.
+TEXTURE_GATE_OPEN: Final[arcade.Texture] = _dungeon_grid[13*8 + 4]
+TEXTURE_GATE_CLOSED: Final[arcade.Texture] = _dungeon_grid[13*8 + 7]
 def _load_animation_strip(
     file: str,
     frame_count: int,

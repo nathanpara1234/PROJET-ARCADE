@@ -1,15 +1,13 @@
 # TEST 1 : TROU SEPARER (DOIT MARCHER)
-import arcade  
+import arcade
 from gameview import GameView
 from map import Map
-
-from textwrap import dedent
 
 from map import load_map_from_string, GridCell
 
 
 def test_holes_separated() -> None:
-    text = dedent("""\
+    text = """
         width: 7
         height: 5
         ---
@@ -19,7 +17,7 @@ def test_holes_separated() -> None:
         x     x
         xxxxxxx
         ---
-    """)
+        """
 
     game_map = load_map_from_string(text)
 
@@ -32,7 +30,7 @@ def test_holes_separated() -> None:
 # TEST 2 : TROU COLLE (DOIT TUER)
 
 def test_holes_adjacent() -> None:
-    text = dedent("""\
+    text = """
         width: 7
         height: 5
         ---
@@ -42,7 +40,7 @@ def test_holes_adjacent() -> None:
         x     x
         xxxxxxx
         ---
-    """)
+        """
 
     game_map = load_map_from_string(text)
 

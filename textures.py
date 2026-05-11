@@ -1,10 +1,10 @@
 from typing import Final
 import arcade
 
-ORIG_TILE_SIZE = (16, 16)
-SWORD_TILE_SIZE = (48,48)
+ORIG_TILE_SIZE = (16, 16)# cest un tuple
+SWORD_TILE_SIZE = (48,48)# tuple
 
-def _load_grid(
+def _load_grid(#cette fonction retourne une liste de textures
     file: str,
     columns: int,
     rows: int,
@@ -31,7 +31,7 @@ def _load_grid(
     spritesheet = arcade.load_spritesheet(file)
     return spritesheet.get_texture_grid(tile_size, columns, columns * rows)
 
-_overworld_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)
+_overworld_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)#ici on charge la grille principale du monde
 # Les portails viennent du tileset du donjon, donc on charge aussi cette grille.
 _dungeon_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png", 13, 12)
 
@@ -44,7 +44,9 @@ TEXTURE_SWITCH_ON: Final[arcade.Texture] = arcade.load_texture(":resources:/imag
 # Textures des portails: une ouverte et une fermee.
 TEXTURE_GATE_OPEN: Final[arcade.Texture] = _dungeon_grid[13*8 + 4]
 TEXTURE_GATE_CLOSED: Final[arcade.Texture] = _dungeon_grid[13*8 + 7]
-def _load_animation_strip(
+
+
+def _load_animation_strip(#cette fonction charge une animation
     file: str,
     frame_count: int,
     frame_duration: int = 100,
@@ -69,7 +71,7 @@ def _load_animation_strip(
     Returns:
         An `arcade.TextureAnimation` representing the full animation.
     """
-    grid = _load_grid(file, columns=frame_count, rows=1, tile_size=tile_size)
+    grid = _load_grid(file, columns=frame_count, rows=1, tile_size=tile_size) # je découpe l'image en frame
     keyframes = [arcade.TextureKeyframe(frame, frame_duration) for frame in grid]
     return arcade.TextureAnimation(keyframes)
 

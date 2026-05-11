@@ -51,7 +51,7 @@ class Player(arcade.TextureAnimationSprite):
         self.score = 0
 
     def player_move(self) -> None:
-        # --- 1. Calcul du déplacement horizontal ---
+        # Calcul du déplacement horizontal
         # On remet change_x à 0 avant de recalculer
         self.change_x = 0
 
@@ -63,7 +63,7 @@ class Player(arcade.TextureAnimationSprite):
         elif self.left_pressed and not self.right_pressed:
             self.change_x = -PLAYER_MOVEMENT_SPEED
 
-        # --- 2. Calcul du déplacement vertical ---
+        # 2. Calcul du déplacement vertical
         # Même idée pour l'axe vertical
         self.change_y = 0
 

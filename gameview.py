@@ -1,7 +1,6 @@
 from math import sqrt
 import networkx as nx
 from typing import Final
-from typing import Any
 import arcade
 from pyglet.graphics import Batch
 from enemies import (
@@ -16,6 +15,7 @@ from textures import *
 from player import Player
 from enum import Enum
 from weapons import *
+from gate_conditions import GateCondition, condition_is_true
 
 from map import (
     Map,
@@ -30,29 +30,26 @@ def grid_to_pixels(i: int) -> int:
     return i * TILE_SIZE + (TILE_SIZE // 2)
 
 
-def condition_is_true(condition: dict[str, Any], switch_states: dict[str, bool]) -> bool:
-    # Cette fonction calcule si la condition d'un portail est vraie ou fausse.
-    # condition vient du YAML, switch_states contient l'etat actuel des switches.
-    key = next(iter(condition))
-    value = condition[key]
+def make_tile_sprite(texture: arcade.Texture, x: int, y: int) -> arcade.Sprite:
+    return arcade.Sprite(
+        texture,
+        scale=SCALE,
+        center_x=grid_to_pixels(x),
+        center_y=grid_to_pixels(y),
+    )
 
-    if key == "switch_is_on":
-        # Exemple: switch_is_on: first
-        return switch_states[value]
 
-    if key == "not":
-        # Exemple: not: [une autre condition]
-        return not condition_is_true(value[0], switch_states)
-
-    if key == "and":
-        # Le portail s'ouvre seulement si les deux conditions sont vraies.
-        return condition_is_true(value[0], switch_states) and condition_is_true(value[1], switch_states)
-
-    if key == "or":
-        # Le portail s'ouvre si au moins une condition est vraie.
-        return condition_is_true(value[0], switch_states) or condition_is_true(value[1], switch_states)
-
-    return False
+def make_tile_animation_sprite(
+    animation: arcade.TextureAnimation,
+    x: int,
+    y: int,
+) -> arcade.TextureAnimationSprite:
+    return arcade.TextureAnimationSprite(
+        animation=animation,
+        scale=SCALE,
+        center_x=grid_to_pixels(x),
+        center_y=grid_to_pixels(y),
+    )
 
 
 class SwitchSprite(arcade.Sprite):
@@ -85,7 +82,7 @@ class SwitchSprite(arcade.Sprite):
 class GateSprite(arcade.Sprite):
     # Sprite visible du portail.
     # open_if est la condition qui dit quand ce portail est ouvert.
-    open_if: dict[str, Any]
+    open_if: GateCondition
     is_open: bool
 
     def __init__(self, gate: GateData) -> None:
@@ -185,35 +182,17 @@ class GameView(arcade.View):
             for y in range(map.height):
 
                 # Chaque case reçoit d’abord un sol
-                grass = arcade.Sprite(
-                    TEXTURE_GRASS,
-                    scale=SCALE,
-                    center_x=grid_to_pixels(x),
-                    center_y=grid_to_pixels(y),
-                )
-                self.grounds.append(grass)
+                self.grounds.append(make_tile_sprite(TEXTURE_GRASS, x, y))
 
                 cell = map.get(x, y)
 
                 # Si la case contient un buisson, il devient un mur
                 if cell == GridCell.BUSH:
-                    bush = arcade.Sprite(
-                        TEXTURE_BUSH,
-                        scale=SCALE,
-                        center_x=grid_to_pixels(x),
-                        center_y=grid_to_pixels(y),
-                    )
-                    self.walls.append(bush)
+                    self.walls.append(make_tile_sprite(TEXTURE_BUSH, x, y))
 
                 # Si la case contient un cristal, on crée un sprite animé
                 elif cell == GridCell.CRYSTAL:
-                    crystal = arcade.TextureAnimationSprite(
-                        animation=ANIMATION_CRYSTALS,
-                        scale=SCALE,
-                        center_x=grid_to_pixels(x),
-                        center_y=grid_to_pixels(y),
-                    )
-                    self.crystals.append(crystal)
+                    self.crystals.append(make_tile_animation_sprite(ANIMATION_CRYSTALS, x, y))
 
                 # Spinner horizontal : va de gauche à droite entre deux limites
                 elif cell == GridCell.SPINNER_HORIZONTAL:
@@ -261,13 +240,7 @@ class GameView(arcade.View):
 
                 # Trou dans lequel le joueur peut tomber
                 elif cell == GridCell.HOLE:
-                    hole = arcade.Sprite(
-                        TEXTURE_HOLE,
-                        scale=SCALE,
-                        center_x=grid_to_pixels(x),
-                        center_y=grid_to_pixels(y),
-                    )
-                    self.holes.append(hole)
+                    self.holes.append(make_tile_sprite(TEXTURE_HOLE, x, y))
 
                 elif cell == GridCell.BAT:
                     bat = Bat(
@@ -358,7 +331,7 @@ class GameView(arcade.View):
             self.sword_list.draw()
             self.bats.draw()
             self.blobs.draw()
-            '''if DRAW_NAVMESHES:
+            if DRAW_NAVMESHES:
                 the_navmesh = self.map.navmesh # On récupère ton graphe
 
             # 1. Dessin des points (nœuds) et des segments (arêtes)
@@ -377,7 +350,7 @@ class GameView(arcade.View):
                 if hasattr(slime, 'path') and slime.path:
                     # On s'assure qu'il y a au moins 2 points pour tracer une ligne
                     if len(slime.path) >= 2:
-                        arcade.draw_line_strip(slime.path, arcade.color.RED, 2)'''
+                        arcade.draw_line_strip(slime.path, arcade.color.RED, 2)
         with self.camera_score.activate():
             self.score_batch.draw()
 
@@ -442,18 +415,33 @@ class GameView(arcade.View):
                 if gate not in self.walls:
                     self.walls.append(gate)
 
+    def toggle_hit_switches(
+        self,
+        weapon: arcade.Sprite,
+        already_touched: set[str],
+    ) -> tuple[set[str], bool]:
+        hit_switches = arcade.check_for_collision_with_list(weapon, self.switches)
+        hit_ids = {switch.id for switch in hit_switches}
+        has_new_hit = False
+
+        for switch in hit_switches:
+            # On change l'etat seulement quand l'arme vient de toucher le switch.
+            if switch.id not in already_touched:
+                switch.toggle()
+                has_new_hit = True
+
+        return hit_ids, has_new_hit
+
     def update_switches_hit_by_sword(self) -> None:
         # Si l'epee n'attaque pas, elle ne peut pas toucher d'interrupteur.
         if not self.sword.active:
             self.sword_touched_switches.clear()
             return
 
-        hit_switches = arcade.check_for_collision_with_list(self.sword, self.switches)
-        for switch in hit_switches:
-            # On change l'etat une seule fois par attaque.
-            if switch.id not in self.sword_touched_switches:
-                switch.toggle()
-                self.sword_touched_switches.add(switch.id)
+        self.sword_touched_switches, _ = self.toggle_hit_switches(
+            self.sword,
+            self.sword_touched_switches,
+        )
 
     def update_switches_hit_by_boomerang(self) -> None:
         # Boomerang inactif: il ne touche rien.
@@ -461,18 +449,15 @@ class GameView(arcade.View):
             self.boomerang_touched_switches.clear()
             return
 
-        hit_switches = arcade.check_for_collision_with_list(self.boomerang, self.switches)
-        hit_ids = {switch.id for switch in hit_switches}
-
-        for switch in hit_switches:
-            # On evite aussi les changements en boucle pendant que le boomerang touche.
-            if switch.id not in self.boomerang_touched_switches:
-                switch.toggle()
-                if self.boomerang.state == BoomerangState.LAUNCHING:
-                    # Comme pour un monstre ou un mur, le boomerang revient apres impact.
-                    self.boomerang.start_return()
+        hit_ids, has_new_hit = self.toggle_hit_switches(
+            self.boomerang,
+            self.boomerang_touched_switches,
+        )
 
         self.boomerang_touched_switches = hit_ids
+        if has_new_hit and self.boomerang.state == BoomerangState.LAUNCHING:
+            # Comme pour un monstre ou un mur, le boomerang revient apres impact.
+            self.boomerang.start_return()
 
     def on_update(self, delta_time: float) -> None:
         enemies = arcade.SpriteList()

@@ -28,7 +28,9 @@ class Player(arcade.TextureAnimationSprite):
     left_pressed: bool
     right_pressed: bool
     score: int
-
+    key : int
+    indestructible: bool
+    indestructibility_timer: int
     def __init__(self, start_x: int, start_y: int) -> None:
         # On initialise le sprite animé avec l'animation idle vers le bas
         super().__init__(
@@ -46,10 +48,11 @@ class Player(arcade.TextureAnimationSprite):
         self.down_pressed = False
         self.left_pressed = False
         self.right_pressed = False
-
+        self.indestructible = False
+        self.indestructibility_timer = 0
         # Score initial
         self.score = 0
-
+        self.key = 0
     def player_move(self) -> None:
         # Calcul du déplacement horizontal
         # On remet change_x à 0 avant de recalculer
@@ -86,11 +89,25 @@ class Player(arcade.TextureAnimationSprite):
 
         # --- 4. Choix de l'animation selon la direction ---
         # Ici on affiche l'animation idle correspondant à la direction
-        if self.direction == Direction.NORTH:
-            self.animation = ANIMATION_PLAYER_IDLE_UP
-        elif self.direction == Direction.SOUTH:
-            self.animation = ANIMATION_PLAYER_IDLE_DOWN
-        elif self.direction == Direction.EAST:
-            self.animation = ANIMATION_PLAYER_IDLE_RIGHT
-        elif self.direction == Direction.WEST:
-            self.animation = ANIMATION_PLAYER_IDLE_LEFT
+        if self.indestructible:
+            if self.direction == Direction.NORTH:
+                self.texture = TEXTURE_SHIELDED_UP
+            elif self.direction == Direction.SOUTH:
+                self.texture = TEXTURE_SHIELDED_DOWN
+            elif self.direction == Direction.EAST:
+                self.texture = TEXTURE_SHIELDED_RIGHT
+            elif self.direction == Direction.WEST:
+                self.texture = TEXTURE_SHIELDED_LEFT
+        else:
+            if self.direction == Direction.NORTH:
+                self.animation = ANIMATION_PLAYER_IDLE_UP
+            elif self.direction == Direction.SOUTH:
+                self.animation = ANIMATION_PLAYER_IDLE_DOWN
+            elif self.direction == Direction.EAST:
+                self.animation = ANIMATION_PLAYER_IDLE_RIGHT
+            elif self.direction == Direction.WEST:
+                self.animation = ANIMATION_PLAYER_IDLE_LEFT
+
+    def player_become_indestructible(self) -> None:
+        self.indestructible = True
+        self.indestructibility_timer = INDESTRUCTIBILITY_DURATION

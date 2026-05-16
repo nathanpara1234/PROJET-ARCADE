@@ -6,7 +6,7 @@ from typing import cast
 import networkx as nx
 import yaml
 
-from constants import TILE_SIZE
+from constants import TILE_SIZE, NAVMESH_DENSITY
 from gate_conditions import GateCondition
 
 
@@ -28,6 +28,8 @@ class GridCell(Enum):#car la map est une grille de cellules et chaque cellule pe
     # Nouvelles cases pour ma partie interrupteurs / portails.
     SWITCH = 8
     GATE = 9
+    KEY = 10
+    CHEST = 11
 
 
 @dataclass(frozen=True)
@@ -211,50 +213,69 @@ def _read_gates(
 
 # fonction qui calcule la position d'un noeud dans une case
 def _node_for_cell(x: int, y: int, i: int, j: int) -> tuple[float, float]:
-    node_x = round(x * TILE_SIZE + (2 * i + 1) * TILE_SIZE / 6, 6)
-    node_y = round(y * TILE_SIZE + (2 * j + 1) * TILE_SIZE / 6, 6)
+    node_x = round(x * TILE_SIZE + (2 * i + 1) * TILE_SIZE / (2 * NAVMESH_DENSITY), 6)
+    node_y = round(y * TILE_SIZE + (2 * j + 1) * TILE_SIZE / (2 * NAVMESH_DENSITY), 6)
     return (node_x, node_y)
 
 
-def _build_navmesh(grid: list[list[GridCell]], width: int, height: int) -> nx.Graph[tuple[float, float]]:
+def _build_navmesh(cases_marchables: list[tuple[int, int]], cases_buissons: set[tuple[int, int]]) -> nx.Graph[tuple[float, float]]:
+    '''1)  on crée les noeuds
+    Pour chaque case marchable, on crée n×n noeuds
+    Pour chaque noeud, on regarde les 9 cases autour de sa case (voisines + elle-même).
+    Si une case voisine est un buisson, on calcule le centre pixel de ce buisson.
+    Si le noeud est à moins de TILE_SIZE du centre du buisson, on le supprime
+    2) on relie les noeuds voisins
+    Pour chaque noeud, on relie ses voisins directs (haut, bas, gauche, droite)
+    et ses voisins diagonaux, avec un poids qui correspond à la distance'''
+
+    step      = TILE_SIZE / NAVMESH_DENSITY   #pour le poid des arrêtes
+    step_diag = step * sqrt(2)
+
+    # on créé les noeuds sur les cases marchable
+    # dans chaque case marchable, on crée NAVMESH_DENSITY × NAVMESH_DENSITY noeuds
+    node_positions: dict[tuple[int, int], tuple[float, float]] = {}
+
+    for cell_x, cell_y in cases_marchables:
+        for i in range(NAVMESH_DENSITY):
+            for j in range(NAVMESH_DENSITY):
+                pos = _node_for_cell(cell_x, cell_y, i, j)
+
+                trop_proche = False
+                # On parcour les 9 cases autour du noeud (dx et dy valent -1, 0 ou 1) pour toutes les directions
+                for dx in range(-1, 2):
+                    for dy in range(-1, 2):
+                        #on regarde si la case voisine est un buisson
+                        if (cell_x + dx, cell_y + dy) in cases_buissons:
+                            # Si oui, on calcule le centre pixel de ce buisson
+                            centre_x = (cell_x + dx) * TILE_SIZE + TILE_SIZE // 2
+                            centre_y = (cell_y + dy) * TILE_SIZE + TILE_SIZE // 2
+                            # Si le noeud est trop proche du centre du buisson, on le supprime
+                            if sqrt((pos[0] - centre_x) ** 2 + (pos[1] - centre_y) ** 2) < 1 * TILE_SIZE:
+                                trop_proche = True
+                if trop_proche:
+                    continue
+                # on crée cet indice pour que la clé ddans le dictionnaire soit en int et pas en float
+                index = (cell_x * NAVMESH_DENSITY + i, cell_y * NAVMESH_DENSITY + j)
+                node_positions[index] = pos
+
     graph: nx.Graph[tuple[float, float]] = nx.Graph()
-    positions_by_index: dict[tuple[int, int], tuple[float, float]] = {}
+    graph.add_nodes_from(node_positions.values())
 
-    for y in range(height):
-        for x in range(width):
-            cell = grid[y][x]
+    #on parcours tous les noeuds et on créé les arrêtes avec tous les voisins
+    # on crée deux fois chaque arrêtes mais cela ne change pas la complexité
+    for index in node_positions:
+        xi, yi = index
+        pos = node_positions[index]
 
-            # Les trous, les buissons et les portails sont des obstacles pour les blobs.
-            if cell == GridCell.BUSH or cell == GridCell.HOLE or cell == GridCell.GATE:
-                continue
+        voisins_droits = [(xi + 1, yi), (xi - 1, yi), (xi, yi + 1), (xi, yi - 1)]
+        for voisin in voisins_droits:
+            if voisin in node_positions:
+                graph.add_edge(pos, node_positions[voisin], weight=step)
 
-            for i in range(3):
-                for j in range(3):
-                    index = (x * 3 + i, y * 3 + j)
-                    position = _node_for_cell(x, y, i, j)
-                    positions_by_index[index] = position
-                    graph.add_node(position)
-
-    directions = [
-        (1, 0),
-        (-1, 0),
-        (0, 1),
-        (0, -1),
-        (1, 1),
-        (-1, 1),
-        (1, -1),
-        (-1, -1),
-    ]
-
-    for index, position in positions_by_index.items():
-        x_index, y_index = index
-
-        for dx, dy in directions:
-            neighbor_index = (x_index + dx, y_index + dy)
-            if neighbor_index in positions_by_index:
-                neighbor = positions_by_index[neighbor_index]
-                weight = sqrt((neighbor[0] - position[0]) ** 2 + (neighbor[1] - position[1]) ** 2)
-                graph.add_edge(position, neighbor, weight=weight)
+        voisins_diagonaux = [(xi + 1, yi + 1), (xi - 1, yi + 1), (xi + 1, yi - 1), (xi - 1, yi - 1)]
+        for voisin in voisins_diagonaux:
+            if voisin in node_positions:
+                graph.add_edge(pos, node_positions[voisin], weight=step_diag)
 
     return graph
 
@@ -303,6 +324,8 @@ def load_map_from_string(text: str) -> Map:
 
     grid: list[list[GridCell]] = []
     player_positions: list[tuple[int, int]] = []
+    cases_marchables: list[tuple[int, int]] = []  # cases où les blobs peuvent aller, donc
+    cases_buissons: set[tuple[int, int]] = set()  # positions des buissons pour le check de proximité
 
     for y_in_file in range(height):
         line = lines[map_start + y_in_file]
@@ -318,29 +341,44 @@ def load_map_from_string(text: str) -> Map:
 
             if char == " ":
                 row.append(GridCell.GRASS)
+                cases_marchables.append((x, y_map))
             elif char == "x":
                 row.append(GridCell.BUSH)
+                cases_buissons.add((x, y_map))
             elif char == "*":
                 row.append(GridCell.CRYSTAL)
+                cases_marchables.append((x, y_map))
             elif char == "o" or char == "O":
                 row.append(GridCell.HOLE)
             elif char == "s":
                 row.append(GridCell.SPINNER_HORIZONTAL)
+                cases_marchables.append((x, y_map))
             elif char == "S":
                 row.append(GridCell.SPINNER_VERTICAL)
+                cases_marchables.append((x, y_map))
             elif char == "P":
                 player_positions.append((x, y_map))
                 row.append(GridCell.GRASS)
+                cases_marchables.append((x, y_map))
             elif char == "v":
                 row.append(GridCell.BAT)
+                cases_marchables.append((x, y_map))
             elif char == "b":
                 row.append(GridCell.BLOB)
+                cases_marchables.append((x, y_map))
             elif char == "^":
                 # Le symbole ^ dans le dessin de map veut dire interrupteur.
                 row.append(GridCell.SWITCH)
+                cases_marchables.append((x, y_map))
             elif char == "|":
                 # Le symbole | dans le dessin de map veut dire portail.
                 row.append(GridCell.GATE)
+            elif char == "k" :
+                row.append(GridCell.KEY)
+                cases_marchables.append((x, y_map))
+            elif char == "C" :
+                row.append(GridCell.CHEST)
+                cases_marchables.append((x, y_map))
             else:
                 raise InvalidMapFileException(f"Caractere invalide dans la carte : {char!r}")
 
@@ -382,7 +420,7 @@ def load_map_from_string(text: str) -> Map:
         player_start_x=player_start_x,
         player_start_y=player_start_y,
         _grid=grid,
-        navmesh=_build_navmesh(grid, width, height),
+        navmesh=_build_navmesh(cases_marchables, cases_buissons),
         switches=switches,
         gates=gates,
     )

@@ -56,10 +56,8 @@ class Boomerang(Weapon):
         # Etat initial : le boomerang est inactif et invisible
         self.state = BoomerangState.INACTIVE
         self.visible = False
-        # Vitesse conseillée dans l'énoncé
-        self.speed = 8
-        # Distance maximale : 8 cellules
-        self.max_distance = 8 * TILE_SIZE
+        self.speed = BOOMERANG_SPEED
+        self.max_distance = BOOMERANG_MAX_DISTANCE
         # Distance parcourue en phase de lancement
         self.travelled_distance = 0
         # Pas de mouvement au départ

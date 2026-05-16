@@ -19,7 +19,7 @@ def test_condition_is_true_without_arcade() -> None:
 
 
 def test_load_switch_and_gate_from_yaml() -> None:
-    text = dedent("""\
+    text = """
         width: 5
         height: 3
         switches:
@@ -37,7 +37,7 @@ def test_load_switch_and_gate_from_yaml() -> None:
         x^ |x
         xxxxx
         ---
-    """)
+    """
 
     game_map = load_map_from_string(text)
 
@@ -49,7 +49,7 @@ def test_load_switch_and_gate_from_yaml() -> None:
 
 
 def test_gate_cannot_use_unknown_switch() -> None:
-    text = dedent("""\
+    text ="""
         width: 5
         height: 3
         gates:
@@ -62,7 +62,7 @@ def test_gate_cannot_use_unknown_switch() -> None:
         x  |x
         xxxxx
         ---
-    """)
+    """
 
     with pytest.raises(InvalidMapFileException):
         load_map_from_string(text)

@@ -13,7 +13,7 @@ from enemies import (
 )
 
 def test_horizontal_spinner_limits() -> None:# Imagination d'une petite map directement dans le test
-    text = dedent("""\
+    text = """
         width: 7
         height: 5
         ---
@@ -23,7 +23,7 @@ def test_horizontal_spinner_limits() -> None:# Imagination d'une petite map dire
         x     x
         xxxxxxx
         ---
-    """)
+    """
     game_map = load_map_from_string(text) # On convertit le string qu'on a créer en objet Map
     left_x, right_x = compute_horizontal_spinner_limits(game_map, 2, 2) #on place un spinner en (2,2) et on calcule ses limites de deplacements
     assert left_x == 1# Il doit pouvoir aller jusqu'au mur de gauche
@@ -31,7 +31,7 @@ def test_horizontal_spinner_limits() -> None:# Imagination d'une petite map dire
 
 # On crée une map avec un spinner vertical
 def test_vertical_spinner_limits() -> None:
-    text = dedent("""\
+    text = """
         width: 5
         height: 7
         ---
@@ -43,7 +43,7 @@ def test_vertical_spinner_limits() -> None:
         x   x
         xxxxx
         ---
-    """)
+    """
     game_map = load_map_from_string(text)
     bottom_y, top_y = compute_vertical_spinner_limits(game_map, 2, 4) # le spinner vertical est situé en (2,4) et il doit pouvoir descendre jusqu'à la première case libre
     assert bottom_y == 1 # pouvoir descendre jusqu'à la première case libre

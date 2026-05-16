@@ -2,6 +2,7 @@ import networkx as nx
 from math import cos, sin, sqrt
 import random
 import arcade
+from abc import abstractmethod
 from textures import *
 from constants import *
 import math
@@ -25,17 +26,17 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
                 # Le spinner inverse sa direction s’il atteint une borne
             if self.center_x >= self.max_pos:
                 self.center_x = self.max_pos
-                self.change_x = -3
+                self.change_x = -SPINNER_SPEED
             elif self.center_x <= self.min_pos:
                 self.center_x = self.min_pos
-                self.change_x = 3
+                self.change_x = SPINNER_SPEED
         else:
             if self.center_y >= self.max_pos:
                 self.center_y = self.max_pos
-                self.change_y = -3
+                self.change_y = -SPINNER_SPEED
             elif self.center_y <= self.min_pos:
                 self.center_y = self.min_pos
-                self.change_y = 3
+                self.change_y = SPINNER_SPEED
 
 # Calcule les limites horizontales d'un spinner horizontal
 # Retourne (left_x, right_x) inclus
@@ -126,14 +127,22 @@ def compute_spinner_limits(game_map: Map, start_x: int, start_y: int, is_horizon
 
 
 
-class Bat(arcade.TextureAnimationSprite):
+class Enemy(arcade.TextureAnimationSprite):
+    @abstractmethod
+    def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
+        ...
+
+
+class Bat(Enemy):
     direction: float
     start_x: int
     start_y: int
     path: list
     i : int
+    world_width: int
+    world_height: int
 
-    def __init__(self, start_x: int, start_y: int) -> None:
+    def __init__(self, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
         super().__init__(
             animation=ANIMATION_BAT,
             scale=SCALE,
@@ -143,30 +152,37 @@ class Bat(arcade.TextureAnimationSprite):
         self.direction = random.uniform(0, 360)
         self.start_x = start_x
         self.start_y = start_y
+        self.world_width = world_width
+        self.world_height = world_height
 
     def valid_pos(self, x: float, y: float) -> bool:
-        return (
-            self.start_x - 100 < x < self.start_x + 100
-            and self.start_y - 100 < y < self.start_y + 100
-            and 0 < x < 40*TILE_SIZE and 0 < y < 15*TILE_SIZE
-        )
+        min_x = max(TILE_SIZE, self.start_x - 100)
+        max_x = min(self.world_width - TILE_SIZE, self.start_x + 100)
+        min_y = max(TILE_SIZE, self.start_y - 100)
+        max_y = min(self.world_height - TILE_SIZE, self.start_y + 100)
+        return min_x < x < max_x and min_y < y < max_y
 
-    def bat_move(self) -> None:
+    def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
+
         condition_move = random.uniform(0, 100)
-
+        #on choisit un nombre aléatoirement entre 0 et 100
+        # et on fais changer la bat de direction que si le nombre est inférieur à 2
+        # ce qui fait que la bat change de direction à 2% des frames
         if condition_move < 2:
             self.direction = random.uniform(self.direction - 30, self.direction + 30)
 
-        next_x = self.center_x + 2 * cos((self.direction * math.pi) / 180)
-        next_y = self.center_y + 2 * sin((self.direction * math.pi) / 180)
+        #on fait avancé la bat que si la prochaine frame la bat est encore à l'intérieur de la zone
+        next_x = self.center_x + BAT_MOUVEMENT_SPEED * cos((self.direction * math.pi) / 180)
+        next_y = self.center_y + BAT_MOUVEMENT_SPEED * sin((self.direction * math.pi) / 180)
 
         if self.valid_pos(next_x, next_y):
             self.center_x = next_x
             self.center_y = next_y
+        # si la bat est hors de la zone à la frame suivante, elle fait demi tour
         else:
             self.direction = (self.direction + 180) % 360
 
-class Blob (arcade.TextureAnimationSprite):
+class Blob(Enemy):
     target_x: float
     target_y: float
     start_x: float
@@ -187,11 +203,11 @@ class Blob (arcade.TextureAnimationSprite):
         self.path = []
         self.i = 0
     def valid_pos(self, x: float, y: float) -> bool:
+        #fonction qui définit la zone de patrouille du blob
         return (
             self.start_x - 4*TILE_SIZE < x < self.start_x + 4*TILE_SIZE
             and self.start_y - 4*TILE_SIZE < y < self.start_y + 4*TILE_SIZE
         )
-
 
 
     def new_target (self, G : nx.Graph, target_player:  tuple[float, float] | None) -> None:
@@ -201,11 +217,12 @@ class Blob (arcade.TextureAnimationSprite):
 
 
         pos_blob = min(all_nodes, key=lambda n: (n[0] - self.center_x)**2 + (n[1] - self.center_y)**2)
-    # Calculé UNE SEULE FOIS avant la boucle
+        #donne le noeud le plus proche du blob afin de creer le chemin
         composante = nx.node_connected_component(G, pos_blob)
 
         while not path_found:
             if target_player is not None:
+                #prend les coordonées du player si il est dans la zone de vision du blob
                 self.target_x = target_player[0]
                 self.target_y = target_player[1]
             else:
@@ -218,145 +235,31 @@ class Blob (arcade.TextureAnimationSprite):
                 zone_max_x = min(MAX_WINDOW_WIDTH, raw_max_x)
                 zone_min_y = max(0, raw_min_y)
                 zone_max_y = min(MAX_WINDOW_HEIGHT, raw_max_y)
-
+                #les lignes précédentes calculs une zone dans laquelle on va choisir au hasard un point dans la map
                 self.target_x = random.randrange(int(min(zone_min_x, zone_max_x)), int(max(zone_min_x, zone_max_x) + 1), TILE_SIZE // 2)
                 self.target_y = random.randrange(int(min(zone_min_y, zone_max_y)), int(max(zone_min_y, zone_max_y) + 1), TILE_SIZE // 2)
 
+            # donne le noeud le plus proche de la cible
             pos_target = min(all_nodes, key=lambda n: (n[0] - self.target_x)**2 + (n[1] - self.target_y)**2)
 
             if pos_target in composante:
                 try:
+                    #creer le chemin avec dikstra, en tenant compte de la longeur des arrêtes
                     self.path = nx.dijkstra_path(G, pos_blob, pos_target, weight='weight')
                     self.i = 0
                     if self.path:
                         path_found = True
-                        print("chemin trouvé !")
                 except Exception as e:
                     print(f"erreur : {e}")
             else:
                 if target_player is not None:
                     break
 
-        '''path_found = False
-        limit =  4* TILE_SIZE
-        all_nodes = list(G.nodes)
-
-         # 2. On s'assure que le blob est bien dans le graph, sinon on le replace
-        pos_blob = min(all_nodes, key=lambda n: (n[0] - self.center_x)**2 + (n[1] - self.center_y)**2)
-        #print(f"pos_blob : {pos_blob}")
-        #print(f"pos_blob in G.nodes : {pos_blob in G.nodes}")
-
-    # On boucle jusqu'à trouver un chemin qui marche
-        while not path_found:
-            if target_player is not None:
-                # Si on a passé une position (le joueur), on l'utilise !
-                self.target_x = target_player[0]
-                self.target_y = target_player[1]
-                path_found = True
-            else :
-
-                raw_min_x = self.start_x - limit
-                raw_max_x = self.start_x + limit
-                raw_min_y = self.start_y - limit
-                raw_max_y = self.start_y + limit
-
-            # 3. ON LIMITE À LA ZONE RÉELLE DE LA MAP (Clamping)
-            # max(0, ...) empêche d'aller en négatif
-            # min(max_x, ...) empêche de sortir à droite/en haut
-                zone_min_x = max(0, raw_min_x)
-                zone_max_x = min(MAX_WINDOW_WIDTH, raw_max_x)
-                zone_min_y = max(0, raw_min_y)
-                zone_max_y = min(MAX_WINDOW_HEIGHT, raw_max_y)
-
-                self.target_x = random.randrange(int(min(zone_min_x, zone_max_x)), int(max(zone_min_x, zone_max_x) + 1), TILE_SIZE // 2)
-                self.target_y = random.randrange(int(min(zone_min_y, zone_max_y)), int(max(zone_min_y, zone_max_y) + 1), TILE_SIZE // 2)
-
-
-                pos_target = min(all_nodes, key=lambda n: (n[0]-self.target_x)**2 + (n[1]-self.target_y)**2)
-                composante = nx.node_connected_component(G, pos_blob)
-                if pos_target in composante:
-                    try:
-                        self.path = nx.astar_path(G, pos_blob, pos_target, weight='weight')
-                        self.i = 0
-                        if self.path:
-                            path_found = True
-                    except : #Exception as e:
-                        #print(f"erreur : {e}")
-                        pass
-                else:
-                    if target_player is not None:
-                        break'''
-               # print(f"pos_target : {pos_target}")
-                #print(f"pos_target in G.nodes : {pos_target in G.nodes}")
-        '''composante = nx.node_connected_component(G, pos_blob)
-                #print(f"pos_target in composante : {pos_target in composante}")
-                if pos_target in composante:
-                    try:
-                        self.path = nx.astar_path(G, pos_blob, pos_target, weight='weight')
-                        self.i = 0
-                        if self.path:
-                            path_found = True
-                            print("chemin trouvé !")
-                    except Exception as e:
-                        print(f"erreur : {e}")
-                        path_found = False'''
-
-
-        '''try:
-                    rayon = 6 * TILE_SIZE * 6 * TILE_SIZE
-                    noeuds_proches = [
-                        n for n in G.nodes
-                        if (n[0] - self.center_x)**2 + (n[1] - self.center_y)**2 <= rayon
-                    ]
-                    sous_graphe = G.subgraph(noeuds_proches)
-
-                    if pos_blob in sous_graphe.nodes and pos_target in sous_graphe.nodes:
-                        self.path = nx.astar_path(sous_graphe, pos_blob, pos_target, weight='weight')
-                    else:
-                        self.path = nx.astar_path(G, pos_blob, pos_target, weight='weight')
-
-                    self.i = 0
-                    if self.path:
-                        path_found = True
-                except Exception as e:
-                    print(f"erreur : {e}")
-    # Fallback sur le graphe complet
-                    try:
-                        self.path = nx.astar_path(G, pos_blob, pos_target, weight='weight')
-                        self.i = 0
-                        if self.path:
-                            path_found = True
-                    except:
-                        pass'''
-
-        '''try:
-                rayon = 6 * TILE_SIZE * 6 * TILE_SIZE
-
-                noeuds_proches = [
-                    n for n in G.nodes
-                    if (n[0] - self.center_x)**2 + (n[1] - self.center_y)**2 <= rayon
-                ]
-
-                sous_graphe = G.subgraph(noeuds_proches)
-
-                if pos_blob in sous_graphe.nodes and pos_target in sous_graphe.nodes:
-                    self.path = nx.astar_path(sous_graphe, pos_blob, pos_target, weight='weight')
-                else:
-                    self.path = nx.astar_path(G, pos_blob, pos_target, weight='weight')
-
-                self.i = 0
-                if self.path:
-                    path_found = True
-            except:
-                pass'''
-
-    def blob_move(self, G: nx.Graph, target_player : tuple[float, float] | None) -> None:
-        # 1. Sécurité : si on n'a pas de chemin
+    def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
+        #Sécurité : si on n'a pas de chemin
         if self.i >= len(self.path):
-            self.new_target(G, None)
+            self.new_target(navmesh, None)
             return
-
-
 
         intermediaire_target_x = self.path[self.i][0]
         intermediaire_target_y = self.path[self.i][1]
@@ -365,24 +268,23 @@ class Blob (arcade.TextureAnimationSprite):
         distance_y = intermediaire_target_y - self.center_y
         distance_minimale = (sqrt(distance_x**2 + distance_y**2))
 
-        # 3. GESTION DE L'ARRIVÉE SUR UN NOEUD
         if distance_minimale < 2:  # On est arrivé au point intermédiaire
-            if target_player is not None:
-                # MODE CHASSE : On recalcule vers la position actuelle du joueur
-                self.new_target(G, target_player)
+            if player_pos is not None:
+                # si le jouuer est dans la zone, on calcule une nouvelle position
+                self.new_target(navmesh, player_pos)
                 # On met self.i = 1 dans new_target pour ne pas revenir sur ce noeud
                 self.i = 1
             else:
-                # MODE PATROUILLE
+
                 if self.i >= len(self.path) - 1:
-                    # Arrivé au bout de la patrouille, on en cherche une nouvelle
-                    self.new_target(G, None)
+                    # Arrivé au bout de la patrouille, on en cherche une nouvelle cible aléatoire
+                    self.new_target(navmesh, None)
                 else:
                     # On passe simplement au point suivant
                     self.i += 1
             return # On s'arrête là pour cette frame pour éviter de bouger deux fois
 
-        # 4. MOUVEMENT (seulement si on n'est pas sur un noeud)
+        #MOUVEMENT (seulement si on n'est pas sur un noeud)
         cos_move = distance_x / distance_minimale
         sin_move = distance_y / distance_minimale
         self.center_x += 1 * cos_move

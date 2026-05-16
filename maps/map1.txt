@@ -16,9 +16,9 @@ x      o o       v       x    *   *    x
 x                      * x     o       x
 x         s        xxxxxxx            sx
 x     xxx *   xx    o                  x
-x       o                     xxx      x
+x       o           C         xxx      x
 x            xxxxxxxxxx        x       x
-x         *                    x   *   x
+x    k    *                    x   *   x
 x      S              S     *  x       x
 x  *      o      *                     x
 x       v o       b              o     x

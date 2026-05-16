@@ -44,8 +44,8 @@ TEXTURE_SWITCH_ON: Final[arcade.Texture] = arcade.load_texture(":resources:/imag
 # Textures des portails: une ouverte et une fermee.
 TEXTURE_GATE_OPEN: Final[arcade.Texture] = _dungeon_grid[13*8 + 4]
 TEXTURE_GATE_CLOSED: Final[arcade.Texture] = _dungeon_grid[13*8 + 7]
-
-
+TEXTURE_EMPTY_CHEST : Final[arcade.Texture] = arcade.load_texture(
+    "assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_static_open.png")
 def _load_animation_strip(#cette fonction charge une animation
     file: str,
     frame_count: int,
@@ -93,7 +93,6 @@ ANIMATION_PLAYER_RUN_RIGHT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_right_anim_strip_6.png", 6)
 ANIMATION_CRYSTALS: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/crystal_item_anim_strip_6.png", 6)
-
 ANIMATION_SPINNER: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Spinner_Sprites/spinner_run_attack_anim_all_dir_strip_8.png",3)
 ANIMATION_PLAYER_IDLE_UP: Final[arcade.TextureAnimation] = \
@@ -111,13 +110,25 @@ ANIMATION_SWORD_DOWN: Final[arcade.TextureAnimation] = \
 
 ANIMATION_SWORD_UP: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_up_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
-
 ANIMATION_SWORD_LEFT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_left_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
 
 ANIMATION_SWORD_RIGHT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_right_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
+TEXTURE_SHIELDED_DOWN: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_down.png")
+TEXTURE_SHIELDED_UP: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_up.png")
+TEXTURE_SHIELDED_LEFT: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_left.png")
+TEXTURE_SHIELDED_RIGHT: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_right.png")
+
 ANIMATION_BAT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkbat_Sprites/pinkbat_idle_left_anim_strip_5.png",5)
 ANIMATION_BLOB : Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkslime_Sprites/pinkslime_idle_anim_all_dir_strip_6.png",6)
+
+ANIMATION_KEY : Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/key_item_anim_strip_6.png",6)
+
+ANIMATION_CHEST : Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_strip_8.png",6)
+OPEN_ANIMATION_CHEST: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_opening_strip_5.png",6)

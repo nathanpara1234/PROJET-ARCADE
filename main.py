@@ -33,6 +33,8 @@ def main() -> None:
     # Lancement du jeu
     arcade.run()
 
+    view.profiler.dump_stats("profile.prof")
+
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,11 @@
 from math import sqrt
 import networkx as nx
 from typing import Final
+import cProfile
 import arcade
 from pyglet.graphics import Batch
 from enemies import (
+    Enemy,
     Bat,
     SpinnerSprite,
     Blob,
@@ -116,6 +118,8 @@ class GameView(arcade.View):
     grounds: Final[arcade.SpriteList[arcade.Sprite]]
     walls: Final[arcade.SpriteList[arcade.Sprite]]
     crystals: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
+    keys : Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
+    chests : Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     spinners: Final[arcade.SpriteList[SpinnerSprite]]
     player_list: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     holes: Final[arcade.SpriteList[arcade.Sprite]]
@@ -131,11 +135,12 @@ class GameView(arcade.View):
     sword_list: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     sword: Final[Sword]
     active_weapon: WeaponType
-    bats: Final[arcade.SpriteList[Bat]]
-    blobs: Final[arcade.SpriteList[Blob]]
+    enemies: Final[arcade.SpriteList[Enemy]]
+    all_enemies: Final[arcade.SpriteList]
     player: Final[Player]
     sword_touched_switches: set[str]
     boomerang_touched_switches: set[str]
+    profiler: cProfile.Profile
 
     def __init__(self, map: Map) -> None:
         super().__init__()
@@ -147,6 +152,8 @@ class GameView(arcade.View):
         self.grounds = arcade.SpriteList(use_spatial_hash=True)
         self.walls = arcade.SpriteList(use_spatial_hash=True)
         self.crystals = arcade.SpriteList(use_spatial_hash=True)
+        self.chests = arcade.SpriteList(use_spatial_hash=True)
+        self.keys = arcade.SpriteList(use_spatial_hash=True)
         self.spinners = arcade.SpriteList()
         self.player_list = arcade.SpriteList()
         self.camera = arcade.camera.Camera2D()
@@ -154,6 +161,9 @@ class GameView(arcade.View):
 
         # Son joué lors de la récupération d’un cristal
         self.crystal_sound = arcade.load_sound(":resources:sounds/coin5.wav")
+        self.keys_sound = arcade.load_sound(":resources:sounds/upgrade1.wav")
+        self.chests_sound = arcade.load_sound(":resources:sounds/secret2.wav")
+
 
         # Dimensions du monde en pixels
         self.world_width = map.width * TILE_SIZE
@@ -163,8 +173,8 @@ class GameView(arcade.View):
         # Listes speciales pour ma partie interrupteurs / portails.
         self.switches = arcade.SpriteList()
         self.gates = arcade.SpriteList()
-        self.bats = arcade.SpriteList()
-        self.blobs = arcade.SpriteList()
+        self.enemies = arcade.SpriteList()
+        self.all_enemies = arcade.SpriteList()
         # Ces sets evitent qu'une arme reste collee sur un interrupteur
         # et le fasse changer d'etat 60 fois par seconde.
         self.sword_touched_switches = set()
@@ -194,6 +204,12 @@ class GameView(arcade.View):
                 elif cell == GridCell.CRYSTAL:
                     self.crystals.append(make_tile_animation_sprite(ANIMATION_CRYSTALS, x, y))
 
+                elif cell == GridCell.KEY :
+                    self.keys.append(make_tile_animation_sprite(ANIMATION_KEY,x ,y))
+
+                elif cell == GridCell.CHEST:
+                    self.chests.append(make_tile_animation_sprite(ANIMATION_CHEST, x, y))
+
                 # Spinner horizontal : va de gauche à droite entre deux limites
                 elif cell == GridCell.SPINNER_HORIZONTAL:
                     spinner = SpinnerSprite(
@@ -211,10 +227,11 @@ class GameView(arcade.View):
                     spinner.min_pos = grid_to_pixels(left_x)
                     spinner.max_pos = grid_to_pixels(right_x)
 
-                    spinner.change_x = 3
+                    spinner.change_x = SPINNER_SPEED
                     spinner.change_y = 0
 
                     self.spinners.append(spinner)
+                    self.all_enemies.append(spinner)
 
                 # Spinner vertical : va de bas en haut entre deux limites
                 elif cell == GridCell.SPINNER_VERTICAL:
@@ -234,9 +251,10 @@ class GameView(arcade.View):
                     spinner.max_pos = grid_to_pixels(top_y)
 
                     spinner.change_x = 0
-                    spinner.change_y = 3
+                    spinner.change_y = SPINNER_SPEED
 
                     self.spinners.append(spinner)
+                    self.all_enemies.append(spinner)
 
                 # Trou dans lequel le joueur peut tomber
                 elif cell == GridCell.HOLE:
@@ -246,15 +264,19 @@ class GameView(arcade.View):
                     bat = Bat(
                         start_x=grid_to_pixels(x),
                         start_y=grid_to_pixels(y),
+                        world_width=map.width * TILE_SIZE,
+                        world_height=map.height * TILE_SIZE,
                     )
-                    self.bats.append(bat)
+                    self.enemies.append(bat)
+                    self.all_enemies.append(bat)
 
                 elif cell == GridCell.BLOB:
-                    blob = Blob (
-                    start_x=grid_to_pixels(x),
-                    start_y=grid_to_pixels(y),
+                    blob = Blob(
+                        start_x=grid_to_pixels(x),
+                        start_y=grid_to_pixels(y),
                     )
-                    self.blobs.append(blob)
+                    self.enemies.append(blob)
+                    self.all_enemies.append(blob)
 
         # Création du joueur à sa position de départ sur la map
         for switch_data in map.switches:
@@ -284,13 +306,24 @@ class GameView(arcade.View):
         self.physics_engine = arcade.PhysicsEngineSimple(self.player, self.walls)
         # On met les portails dans le bon etat des le debut du jeu.
         self.update_gate_states()
+        self.total_crystals = len(self.crystals)
+        self.profiler = cProfile.Profile()
         # Batch pour afficher plusieurs textes de HUD efficacement
         self.score_batch = Batch()
 
         # Texte du score
         self.score_text = arcade.Text(
-            text=f"{self.player.score}",
+            text=f"{self.player.score} / {self.total_crystals}",
             x=20,
+            y=self.window.height - 40,
+            color=arcade.color.WHITE,
+            font_size=18,
+            batch=self.score_batch
+        )
+
+        self.key_text = arcade.Text(
+            text=f"Clés : {self.player.key}",
+            x=350,
             y=self.window.height - 40,
             color=arcade.color.WHITE,
             font_size=18,
@@ -303,6 +336,17 @@ class GameView(arcade.View):
             y=self.window.height - 70,
             color=arcade.color.WHITE,
             font_size=18,
+            batch=self.score_batch
+        )
+
+        self.end_text = arcade.Text(
+            text="",
+            x=self.window.width // 2,
+            y=self.window.height // 2,
+            color=arcade.color.YELLOW,
+            font_size=72,
+            anchor_x="center",
+            anchor_y="center",
             batch=self.score_batch
         )
 
@@ -325,13 +369,14 @@ class GameView(arcade.View):
             self.gates.draw()
             self.switches.draw()
             self.crystals.draw()
+            self.keys.draw()
+            self.chests.draw()
             self.spinners.draw()
             self.player_list.draw()
             self.boomerang_list.draw()
             self.sword_list.draw()
-            self.bats.draw()
-            self.blobs.draw()
-            if DRAW_NAVMESHES:
+            self.enemies.draw()
+            '''if DRAW_NAVMESHES:
                 the_navmesh = self.map.navmesh # On récupère ton graphe
 
             # 1. Dessin des points (nœuds) et des segments (arêtes)
@@ -345,21 +390,21 @@ class GameView(arcade.View):
                     arcade.draw_line(node[0], node[1], neighbor[0], neighbor[1], arcade.color.BLACK, 2)
 
             # 2. Dessin du chemin rouge pour chaque Blob
-            for slime in self.blobs:
-                # On vérifie si l'ennemi a un chemin calculé
-                if hasattr(slime, 'path') and slime.path:
-                    # On s'assure qu'il y a au moins 2 points pour tracer une ligne
-                    if len(slime.path) >= 2:
-                        arcade.draw_line_strip(slime.path, arcade.color.RED, 2)
+            for enemy in self.enemies:
+                if isinstance(enemy, Blob) and enemy.path and len(enemy.path) >= 2:
+                    arcade.draw_line_strip(enemy.path, arcade.color.RED, 2)'''
         with self.camera_score.activate():
             self.score_batch.draw()
 
     def restart_if_collision(self, enemies: arcade.SpriteList) -> None:
         # 1. Test des ennemis (chauve-souris, spinners)
-        if arcade.check_for_collision_with_list(self.player, enemies):
+        if arcade.check_for_collision_with_list(self.player, enemies) and not self.player.indestructible:
             new_game_view = GameView(self.map)
             self.window.show_view(new_game_view)
-            return # On s'arrête là si on a déjà touché un ennemi
+         # On s'arrête là si on a déjà touché un ennemi
+        elif self.player.indestructible:
+            for enemy in arcade.check_for_collision_with_list(self.player, enemies):
+                enemy.remove_from_sprite_lists()
 
         # 2. Test des trous
         for hole in self.holes:
@@ -460,31 +505,33 @@ class GameView(arcade.View):
             self.boomerang.start_return()
 
     def on_update(self, delta_time: float) -> None:
-        enemies = arcade.SpriteList()
-        for bat in self.bats:
-            enemies.append(bat)
-        for blob in self.blobs:
-            enemies.append(blob)
-        for spinner in self.spinners:
-            enemies.append(spinner)
+        self.profiler.enable()
+        self.do_on_update(delta_time)
+        self.profiler.disable()
 
+    def do_on_update(self, delta_time: float) -> None:
         # Met à jour la physique du joueur
         self.physics_engine.update()
         # Met à jour les animations
         self.player.update_animation()
         self.player.player_move()
+        if self.player.indestructible:
+            self.player.indestructibility_timer -= 1
+            if self.player.indestructibility_timer <= 0:
+                self.player.indestructible = False
+                self.player.indestructibility_timer = 0
         self.update_camera_position()
-        self.restart_if_collision(enemies)
+        self.restart_if_collision(self.all_enemies)
         self.crystals.update_animation()
+        self.keys.update_animation()
         self.spinners.update_animation()
-        self.bats.update_animation()
-        self.blobs.update_animation()
+        self.enemies.update_animation()
         self.boomerang.update_animation()
-        self.boomerang.update_boomerang(self.player, self.walls, enemies)
+        self.boomerang.update_boomerang(self.player, self.walls, self.all_enemies)
         self.sword.update_animation()
         self.sword.update_sword(
             delta_time,
-            enemies,
+            self.all_enemies,
             self.crystals,
             self.player,
             self.crystal_sound
@@ -493,18 +540,14 @@ class GameView(arcade.View):
         self.update_switches_hit_by_sword()
         # Apres les collisions avec les armes, les portails peuvent avoir change.
         self.update_gate_states()
-        for bat in self.bats:
-            bat.bat_move()
         for spinner in self.spinners:
             spinner.spinner_move()
-        for blob in self.blobs:
-            distance = sqrt((blob.center_x - self.player.center_x)**2 + (blob.center_y - self.player.center_y)**2)
-
-
-            if distance <= 5 * TILE_SIZE and arcade.has_line_of_sight(blob.position, self.player.position, self.walls):
-                blob.blob_move(self.map.navmesh, self.player.position)
+        for enemy in self.enemies:
+            distance = sqrt((enemy.center_x - self.player.center_x)**2 + (enemy.center_y - self.player.center_y)**2)
+            if distance <= 5 * TILE_SIZE and arcade.has_line_of_sight(enemy.position, self.player.position, self.walls):
+                enemy.move(self.map.navmesh, self.player.position)
             else:
-                blob.blob_move(self.map.navmesh, None)
+                enemy.move(self.map.navmesh, None)
 
         # Détection de collision entre le joueur et les cristaux
         collision_crystals = arcade.check_for_collision_with_list(self.player, self.crystals)
@@ -512,10 +555,25 @@ class GameView(arcade.View):
             crystal.remove_from_sprite_lists()
             arcade.play_sound(self.crystal_sound)
             self.player.score += 1
-            self.score_text.text = f"{self.player.score}"
+            self.score_text.text = f"{self.player.score} / {self.total_crystals}"
+            if self.player.score >= self.total_crystals:
+                self.end_text.text = "END"
 
-            # Remet le texte de l’arme (ici ce passage pourrait être simplifié
+        collision_keys = arcade.check_for_collision_with_list(self.player, self.keys)
+        for key in collision_keys:
+            key.remove_from_sprite_lists()
+            arcade.play_sound(self.keys_sound)
+            self.player.key += 1
+            self.key_text.text = f"Clés : {self.player.key}"
 
+        collision_chests = arcade.check_for_collision_with_list(self.player, self.chests)
+        for chest in collision_chests:
+            if self.player.key > 0:
+                chest.texture = TEXTURE_EMPTY_CHEST
+                arcade.play_sound(self.chests_sound)
+                self.player.key -= 1
+                self.key_text.text = f"Clés : {self.player.key}"
+                self.player.player_become_indestructible()
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         match symbol:

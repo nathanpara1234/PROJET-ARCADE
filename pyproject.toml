@@ -17,5 +17,6 @@ select = ["ANN"]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.4",
+    "snakeviz>=2.2.2",
     "ty>=0.0.19",
 ]

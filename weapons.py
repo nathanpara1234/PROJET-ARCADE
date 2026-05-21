@@ -12,6 +12,7 @@ from textures import (
     ANIMATION_SWORD_RIGHT,
 )
 
+# === Partie Nico : base commune des armes ===
 class Weapon(arcade.TextureAnimationSprite):
     active: bool
 
@@ -34,6 +35,8 @@ class Weapon(arcade.TextureAnimationSprite):
         for enemy in hit_enemies:
             enemy.remove_from_sprite_lists()
 
+
+# === Partie Nico : boomerang et ses 3 etats ===
 class BoomerangState(Enum):
     INACTIVE = 1
     LAUNCHING = 2
@@ -161,6 +164,8 @@ class Boomerang(Weapon):
             for enemy in hit_enemies:
                 enemy.remove_from_sprite_lists()
 
+
+# === Partie Nico : epee ===
 class Sword(Weapon):
     elapsed_time: float
 

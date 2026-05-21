@@ -1,6 +1,6 @@
 import networkx as nx
 
-from map import load_map_from_string
+from map import GridCell, load_map_from_string
 from constants import TILE_SIZE, NAVMESH_DENSITY
 
 # Map minimale : 3×3 cases marchables entourées de buissons
@@ -122,3 +122,17 @@ def test_noeuds_pas_dans_buisson() -> None:
         # Aucun noeud ne doit être dans une case buisson (x < TILE_SIZE ou x > 3*TILE_SIZE)
         assert x >= TILE_SIZE
         assert y >= TILE_SIZE
+
+
+def test_map_reconnait_les_pics() -> None:
+    game_map = load_map_from_string("""width: 5
+height: 5
+---
+xxxxx
+x ! x
+x P x
+x   x
+xxxxx
+---""")
+
+    assert game_map.get(2, 3) == GridCell.SPIKES

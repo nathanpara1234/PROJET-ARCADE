@@ -1,4 +1,35 @@
-# 1) Question de design : gestion des monstres
+# 1) Question de design : Boomerang
+
+## Avez-vous défini une classe séparée pour gérer le boomerang, et si oui, étend-elle une classe de sprite ? Pourquoi ?
+
+`Boomerang`est une classe séparée définie dans `weapons.py`. Elle hérite de `Weapon`, qui hérite elle-même de `arcade.TextureAnimationSprite`. Le boomerang est donc un sprite animé Arcade, comme les autres éléments visibles du jeu.
+
+C’est pratique car le boomerang a besoin d’une position, d’une animation, d’une visibilité, d’un déplacement et de collisions. Toute la logique du boomerang est regroupée dans sa classe : lancement, retour, vitesse, distance maximale et collisions avec les ennemis ou les murs. `GameView` se contente surtout de créer le boomerang, de l’afficher et d’appeler `update_boomerang`.
+
+## Comment gérez-vous les 3 états du boomerang ?
+
+Les trois états du boomerang sont gérés avec l’énumération `BoomerangState`, définie dans `weapons.py`. Elle contient `INACTIVE`, `LAUNCHING` et `RETURNING`.
+
+Au début, le boomerang est `INACTIVE`, donc invisible. Quand le joueur appuie sur `D`, la méthode `launch` vérifie qu’il est inactif, puis le fait passer en `LAUNCHING`. Dans cet état, il avance en ligne droite jusqu’à toucher un mur, atteindre sa distance maximale ou devoir revenir après un impact. Ensuite, il passe en `RETURNING`, revient vers la position actuelle du joueur, puis repasse en `INACTIVE` quand il est assez proche.
+
+
+# 2) Question de design : Epée
+
+## Comment gérez-vous le fait que vous avez maintenant deux types d’armes, avec des comportements différents ? Pensez-vous que vous pourriez ajouter une troisième arme sans tout refaire ?
+
+`Boomerang` et `Sword` héritent tous les deux de la classe `Weapon`, définie dans `weapons.py`. Cette classe commune hérite de `arcade.TextureAnimationSprite`, donc les deux armes sont des sprites animés avec une position, une visibilité et des collisions.
+
+Chaque arme garde ensuite son propre comportement : le `Boomerang` gère ses états avec `BoomerangState` et revient vers le joueur, tandis que `Sword` gère une attaque courte avec une animation selon la direction du joueur. Dans `GameView`, l’arme active est stockée avec `active_weapon`, qui peut valoir `WeaponType.BOOMERANG` ou `WeaponType.SWORD`. Quand le joueur appuie sur `R`, l’arme active change, et quand il appuie sur `D`, le jeu utilise l’arme actuellement sélectionnée.
+
+Pour ajouter une troisième arme, il faudrait créer une nouvelle classe qui hérite de `Weapon`, par exemple `Bow(Weapon)`, avec sa propre méthode d’attaque et de mise à jour. Il faudrait ensuite ajouter cette arme dans `WeaponType` et dans la gestion des touches de `GameView`, mais il ne serait pas nécessaire de refaire tout le système des armes.
+
+## Si un monstre attaque le joueur “par derrière” pendant que l’épée est active, que devrait-il se passer ? Est-ce que votre implémentation a le comportement attendu ?
+
+Dans mon implémentation, l’épée et le joueur restent deux sprites séparés. L’épée peut tuer les monstres qu’elle touche, mais elle ne rend pas le joueur invincible. Donc si un monstre touche le joueur pendant que l’épée est active, même par derrière, la collision joueur-monstre est toujours détectée dans `restart_if_collision`.
+
+Le comportement actuel est donc que le joueur meurt quand même si un monstre le touche pendant l’attaque, sauf s’il est dans l’état `indestructible` obtenu avec un coffre. Ce comportement est logique : l’épée attaque seulement dans une zone autour du joueur, mais elle ne protège pas automatiquement tout le corps du joueur.
+
+# 3) Question de design : Chauve-Souris
 
 ## Comment gérez-vous le fait que vous avez maintenant deux types de monstres, avec des comportements différents ? Pensez-vous que vous pourriez ajouter un troisième monstre sans tout refaire ?
 
@@ -8,7 +39,7 @@
 
 Pour ajouter un 3e monstre, il suffit de créer une classe `Ghost(Enemy)` avec sa propre méthode `move` — sans toucher à `GameView`.
 
-# 2) Questions de design :
+# 4) Questions de design : Blobs
 
 ## Qu’avez-vous choisi comme type de nœud TypeNoeud ? Pourquoi ?
 
@@ -31,7 +62,29 @@ Oui. `_build_navmesh` et `load_map_from_string` ne dépendent que de `networkx` 
 -Déplacement du blob(`move`) : Θ(1) par frame on fait des vérifications sur la position du blob en temps constant et on le fait avancé si c'est possible
 
 
-# 3) Analyse des performances
+# 5) Question de design : Interrupteurs et portails
+
+## Quelle structure de données utilisez-vous pour représenter les conditions d’ouverture des portails ? Pourquoi ?
+
+Les conditions d’ouverture des portails sont représentées par un dictionnaire récursif, avec le type `GateCondition` défini dans `gate_conditions.py`.
+
+Une condition est donc gardée presque sous la même forme que dans le YAML. Par exemple, une condition comme `switch_is_on: first` devient un dictionnaire du type `{"switch_is_on": "first"}`, et une condition plus complexe avec `and`, `or` ou `not` contient une liste de sous-conditions. Cette structure est pratique car elle correspond directement à la définition récursive des formules logiques, et la fonction `condition_is_true` peut l’évaluer simplement en s’appelant elle-même sur les sous-formules.
+
+## Pouvez-vous tester l’évaluation des formules logiques sans dépendre de Arcade ?
+
+Oui, l’évaluation des formules logiques peut être testée sans Arcade, car elle est séparée dans le fichier `gate_conditions.py`. La fonction `condition_is_true` prend seulement deux arguments : une condition `GateCondition` et un dictionnaire `switch_states` qui associe chaque id d’interrupteur à `True` ou `False`.
+
+On peut donc tester directement des formules comme `switch_is_on`, `not`, `and` ou `or` avec de simples dictionnaires Python, sans créer de fenêtre Arcade, de sprites ou de `GameView`. C’est utile parce que la logique des portails reste indépendante de l’affichage et du moteur de jeu.
+
+## S’il y a n interrupteurs et m portails, et en supposant que chaque condition de portail n’est qu’un unique switch_is_on, quelle est la complexité de traitement des portails à chaque frame ?
+
+À chaque frame, `GameView` appelle `update_gate_states`. Cette méthode construit d’abord un dictionnaire `switch_states` avec l’état de tous les interrupteurs, ce qui coûte `Θ(n)`.
+
+Ensuite, elle parcourt les `m` portails. Pour chaque portail, si la condition est seulement un `switch_is_on`, l’évaluation est en `Θ(1)` grâce au dictionnaire des interrupteurs. Le traitement des portails coûte donc `Θ(m)`.
+
+Au total, la complexité par frame est donc `Θ(n + m)`.
+
+# 6) Analyse des performances
 
 ## Chargement de la map — facteur : NAVMESH_DENSITY (n nœuds par côté de cellule)
 

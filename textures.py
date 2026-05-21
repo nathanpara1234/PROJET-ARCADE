@@ -105,6 +105,7 @@ ANIMATION_PLAYER_IDLE_RIGHT: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_right_anim_strip_6.png", 6)
 ANIMATION_BOOMERANG: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/provided/boomerang-sheet.png",8,frame_duration=25,)
+# === Partie Nico : animations de l'epee ===
 ANIMATION_SWORD_DOWN: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_down_anim_strip_6.png",6,frame_duration=50,tile_size = SWORD_TILE_SIZE)
 
@@ -132,3 +133,6 @@ ANIMATION_CHEST : Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_strip_8.png",6)
 OPEN_ANIMATION_CHEST: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_opening_strip_5.png",6)
+# === Partie Nico : animation des pics ===
+ANIMATION_SPIKES: Final[arcade.TextureAnimation] = \
+    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Tiles_(animated)/Dungeon/spikes_tile_trap_anim_strip_12.png",12)

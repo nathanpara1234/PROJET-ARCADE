@@ -54,6 +54,7 @@ def make_tile_animation_sprite(
     )
 
 
+# === Partie Nico : sprites des interrupteurs ===
 class SwitchSprite(arcade.Sprite):
     # Sprite visible de l'interrupteur.
     # Il garde aussi son id pour que les portails puissent le retrouver.
@@ -81,6 +82,7 @@ class SwitchSprite(arcade.Sprite):
             self.texture = TEXTURE_SWITCH_OFF
 
 
+# === Partie Nico : sprites des portails ===
 class GateSprite(arcade.Sprite):
     # Sprite visible du portail.
     # open_if est la condition qui dit quand ce portail est ouvert.
@@ -109,6 +111,7 @@ class GateSprite(arcade.Sprite):
 
 
 # Enum pour savoir quelle arme est actuellement équipée
+# === Partie Nico : choix de l'arme active ===
 class WeaponType(Enum):
     BOOMERANG = 1
     SWORD = 2
@@ -120,6 +123,7 @@ class GameView(arcade.View):
     crystals: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     keys : Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     chests : Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
+    spikes: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     spinners: Final[arcade.SpriteList[SpinnerSprite]]
     player_list: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
     holes: Final[arcade.SpriteList[arcade.Sprite]]
@@ -141,6 +145,8 @@ class GameView(arcade.View):
     sword_touched_switches: set[str]
     boomerang_touched_switches: set[str]
     profiler: cProfile.Profile
+    spikes_are_active: bool
+    spikes_timer: float
 
     def __init__(self, map: Map) -> None:
         super().__init__()
@@ -154,6 +160,7 @@ class GameView(arcade.View):
         self.crystals = arcade.SpriteList(use_spatial_hash=True)
         self.chests = arcade.SpriteList(use_spatial_hash=True)
         self.keys = arcade.SpriteList(use_spatial_hash=True)
+        self.spikes = arcade.SpriteList(use_spatial_hash=True)
         self.spinners = arcade.SpriteList()
         self.player_list = arcade.SpriteList()
         self.camera = arcade.camera.Camera2D()
@@ -168,6 +175,8 @@ class GameView(arcade.View):
         # Dimensions du monde en pixels
         self.world_width = map.width * TILE_SIZE
         self.world_height = map.height * TILE_SIZE
+        self.spikes_are_active = True
+        self.spikes_timer = 0.0
 
         self.holes = arcade.SpriteList()
         # Listes speciales pour ma partie interrupteurs / portails.
@@ -175,6 +184,7 @@ class GameView(arcade.View):
         self.gates = arcade.SpriteList()
         self.enemies = arcade.SpriteList()
         self.all_enemies = arcade.SpriteList()
+        # === Partie Nico : collisions arme/interrupteur ===
         # Ces sets evitent qu'une arme reste collee sur un interrupteur
         # et le fasse changer d'etat 60 fois par seconde.
         self.sword_touched_switches = set()
@@ -210,7 +220,12 @@ class GameView(arcade.View):
                 elif cell == GridCell.CHEST:
                     self.chests.append(make_tile_animation_sprite(ANIMATION_CHEST, x, y))
 
+                # === Partie Nico : creation des pics ===
+                elif cell == GridCell.SPIKES:
+                    self.spikes.append(make_tile_animation_sprite(ANIMATION_SPIKES, x, y))
+
                 # Spinner horizontal : va de gauche à droite entre deux limites
+                # === Partie Nico : creation des spinners ===
                 elif cell == GridCell.SPINNER_HORIZONTAL:
                     spinner = SpinnerSprite(
                         animation=ANIMATION_SPINNER,
@@ -257,6 +272,7 @@ class GameView(arcade.View):
                     self.all_enemies.append(spinner)
 
                 # Trou dans lequel le joueur peut tomber
+                # === Partie Nico : creation des trous ===
                 elif cell == GridCell.HOLE:
                     self.holes.append(make_tile_sprite(TEXTURE_HOLE, x, y))
 
@@ -371,6 +387,8 @@ class GameView(arcade.View):
             self.crystals.draw()
             self.keys.draw()
             self.chests.draw()
+            # === Partie Nico : affichage des pics et des armes ===
+            self.spikes.draw()
             self.spinners.draw()
             self.player_list.draw()
             self.boomerang_list.draw()
@@ -414,6 +432,26 @@ class GameView(arcade.View):
                 self.window.show_view(new_game_view)
                 return
 
+    def update_spikes(self, delta_time: float) -> None:
+        # === Partie Nico : alternance actif/inactif des pics ===
+        self.spikes.update_animation()
+        self.spikes_timer += delta_time
+
+        if self.spikes_timer >= SPIKES_SWITCH_TIME:
+            self.spikes_timer = 0.0
+            self.spikes_are_active = not self.spikes_are_active
+
+            for spike in self.spikes:
+                spike.alpha = 255 if self.spikes_are_active else 100
+
+    def restart_if_spikes_collision(self) -> None:
+        if not self.spikes_are_active:
+            return
+
+        if arcade.check_for_collision_with_list(self.player, self.spikes):
+            new_game_view = GameView(self.map)
+            self.window.show_view(new_game_view)
+
     def update_weapon_text(self) -> None:
         #"""Met à jour le texte de l'arme affiché à l'écran."""
         if self.active_weapon == WeaponType.BOOMERANG:
@@ -440,6 +478,7 @@ class GameView(arcade.View):
         self.camera.position = (camera_x, camera_y)
 
     def update_gate_states(self) -> None:
+        # === Partie Nico : ouverture/fermeture des portails ===
         # On fabrique un dictionnaire du genre {"first": True, "second": False}.
         # C'est plus pratique pour evaluer les conditions des portails.
         switch_states = {}
@@ -465,6 +504,7 @@ class GameView(arcade.View):
         weapon: arcade.Sprite,
         already_touched: set[str],
     ) -> tuple[set[str], bool]:
+        # === Partie Nico : une arme touche un interrupteur ===
         hit_switches = arcade.check_for_collision_with_list(weapon, self.switches)
         hit_ids = {switch.id for switch in hit_switches}
         has_new_hit = False
@@ -524,8 +564,11 @@ class GameView(arcade.View):
         self.restart_if_collision(self.all_enemies)
         self.crystals.update_animation()
         self.keys.update_animation()
+        self.update_spikes(delta_time)
+        self.restart_if_spikes_collision()
         self.spinners.update_animation()
         self.enemies.update_animation()
+        # === Partie Nico : mise a jour boomerang/epee ===
         self.boomerang.update_animation()
         self.boomerang.update_boomerang(self.player, self.walls, self.all_enemies)
         self.sword.update_animation()
@@ -591,6 +634,7 @@ class GameView(arcade.View):
                 self.window.show_view(new_game_view)
                 # D : utilise l’arme active
             case arcade.key.D:
+                # === Partie Nico : utiliser l'arme active ===
                 if self.active_weapon == WeaponType.BOOMERANG:
                     self.boomerang.launch(self.player)
                 else:
@@ -598,6 +642,7 @@ class GameView(arcade.View):
 
             # R : change d’arme
             case arcade.key.R:
+                # === Partie Nico : changer d'arme active ===
                 if self.active_weapon == WeaponType.BOOMERANG:
                     self.active_weapon = WeaponType.SWORD
                 else:

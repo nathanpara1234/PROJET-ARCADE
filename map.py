@@ -20,6 +20,7 @@ class GridCell(Enum):#car la map est une grille de cellules et chaque cellule pe
     GRASS = 0
     BUSH = 1
     CRYSTAL = 2
+    # === Partie Nico : cases trous, spinners, interrupteurs, portails, pics ===
     SPINNER_HORIZONTAL = 3
     SPINNER_VERTICAL = 4
     HOLE = 5
@@ -30,6 +31,7 @@ class GridCell(Enum):#car la map est une grille de cellules et chaque cellule pe
     GATE = 9
     KEY = 10
     CHEST = 11
+    SPIKES = 12
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ def _check_position(x: int, y: int, width: int, height: int) -> None:
 
 
 def _check_formula(formula: object, switch_ids: set[str]) -> GateCondition:
+    # === Partie Nico : verification des conditions YAML des portails ===
     # Les conditions des portails sont recursives.
     # Exemple: {"not": [{"switch_is_on": "first"}]}
     if not isinstance(formula, dict) or len(formula) != 1:
@@ -339,6 +342,7 @@ def load_map_from_string(text: str) -> Map:
         for x in range(width):
             char = line[x] if x < len(line) else " "
 
+            # === Partie Nico : caracteres ajoutes dans les maps ===
             if char == " ":
                 row.append(GridCell.GRASS)
                 cases_marchables.append((x, y_map))
@@ -378,6 +382,9 @@ def load_map_from_string(text: str) -> Map:
                 cases_marchables.append((x, y_map))
             elif char == "C" :
                 row.append(GridCell.CHEST)
+                cases_marchables.append((x, y_map))
+            elif char == "!":
+                row.append(GridCell.SPIKES)
                 cases_marchables.append((x, y_map))
             else:
                 raise InvalidMapFileException(f"Caractere invalide dans la carte : {char!r}")

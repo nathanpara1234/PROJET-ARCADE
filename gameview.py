@@ -26,8 +26,7 @@ from map import (
     SwitchData,
 )
 
-# Transforme une coordonnée de grille en coordonnée pixel.
-# Exemple : la case (x=2) devient la position au centre de la 3e tuile.
+# Transforme une coordonnée de grille en coordonné en pixel
 def grid_to_pixels(i: int) -> int:
     return i * TILE_SIZE + (TILE_SIZE // 2)
 
@@ -53,8 +52,6 @@ def make_tile_animation_sprite(
         center_y=grid_to_pixels(y),
     )
 
-
-# === Partie Nico : sprites des interrupteurs ===
 class SwitchSprite(arcade.Sprite):
     # Sprite visible de l'interrupteur.
     # Il garde aussi son id pour que les portails puissent le retrouver.
@@ -64,27 +61,19 @@ class SwitchSprite(arcade.Sprite):
     def __init__(self, switch: SwitchData) -> None:
         # On choisit la texture selon l'etat de depart lu dans la map.
         texture = TEXTURE_SWITCH_ON if switch.is_on else TEXTURE_SWITCH_OFF
-        super().__init__(
-            texture,
-            scale=0.25,
-            center_x=grid_to_pixels(switch.x),
-            center_y=grid_to_pixels(switch.y),
-        )
+        super().__init__(texture,scale=0.25,center_x=grid_to_pixels(switch.x),center_y=grid_to_pixels(switch.y),)
         self.id = switch.id
         self.is_on = switch.is_on
 
-    def toggle(self) -> None:
-        # toggle veut dire "inverser": on devient on si on etait off, et inversement.
+    def inverse_state_switch(self) -> None:# toggle veut dire "inverser": on devient on si on etait off, et inversement.
         self.is_on = not self.is_on
         if self.is_on:
             self.texture = TEXTURE_SWITCH_ON
         else:
             self.texture = TEXTURE_SWITCH_OFF
 
-
-# === Partie Nico : sprites des portails ===
 class GateSprite(arcade.Sprite):
-    # Sprite visible du portail.
+    # On céer le sprite visible du portail.
     # open_if est la condition qui dit quand ce portail est ouvert.
     open_if: GateCondition
     is_open: bool
@@ -92,31 +81,21 @@ class GateSprite(arcade.Sprite):
     def __init__(self, gate: GateData) -> None:
         # Au depart on cree le sprite avec la texture fermee.
         # update_gate_states corrigera ensuite si le portail doit etre ouvert.
-        super().__init__(
-            TEXTURE_GATE_CLOSED,
-            scale=SCALE,
-            center_x=grid_to_pixels(gate.x),
-            center_y=grid_to_pixels(gate.y),
-        )
+        super().__init__(TEXTURE_GATE_CLOSED,scale=SCALE,center_x=grid_to_pixels(gate.x),center_y=grid_to_pixels(gate.y),)
         self.open_if = gate.open_if
         self.is_open = False
 
-    def set_open(self, is_open: bool) -> None:
-        # Change l'etat logique et la texture du portail.
+    def set_open(self, is_open: bool) -> None:# fonction qui change l'etat logique et la texture du portail
         self.is_open = is_open
         if self.is_open:
             self.texture = TEXTURE_GATE_OPEN
         else:
             self.texture = TEXTURE_GATE_CLOSED
 
-
-# Enum pour savoir quelle arme est actuellement équipée
-# === Partie Nico : choix de l'arme active ===
 class WeaponType(Enum):
     BOOMERANG = 1
     SWORD = 2
 
-# Vue principale du jeu
 class GameView(arcade.View):
     grounds: Final[arcade.SpriteList[arcade.Sprite]]
     walls: Final[arcade.SpriteList[arcade.Sprite]]
@@ -158,43 +137,36 @@ class GameView(arcade.View):
         self.grounds = arcade.SpriteList(use_spatial_hash=True)
         self.walls = arcade.SpriteList(use_spatial_hash=True)
         self.crystals = arcade.SpriteList(use_spatial_hash=True)
+        self.crystal_sound = arcade.load_sound(":resources:sounds/coin5.wav")
         self.chests = arcade.SpriteList(use_spatial_hash=True)
+        self.chests_sound = arcade.load_sound(":resources:sounds/secret2.wav")
         self.keys = arcade.SpriteList(use_spatial_hash=True)
+        self.keys_sound = arcade.load_sound(":resources:sounds/upgrade1.wav")
         self.spikes = arcade.SpriteList(use_spatial_hash=True)
         self.spinners = arcade.SpriteList()
         self.player_list = arcade.SpriteList()
         self.camera = arcade.camera.Camera2D()
         self.camera_score = arcade.camera.Camera2D()
-
-        # Son joué lors de la récupération d’un cristal
-        self.crystal_sound = arcade.load_sound(":resources:sounds/coin5.wav")
-        self.keys_sound = arcade.load_sound(":resources:sounds/upgrade1.wav")
-        self.chests_sound = arcade.load_sound(":resources:sounds/secret2.wav")
-
-
         # Dimensions du monde en pixels
         self.world_width = map.width * TILE_SIZE
         self.world_height = map.height * TILE_SIZE
+        # Initialisation des spikes
         self.spikes_are_active = True
         self.spikes_timer = 0.0
-
+        # initialisation des trou
         self.holes = arcade.SpriteList()
-        # Listes speciales pour ma partie interrupteurs / portails.
+        #initialisation des portail et interrupteur
         self.switches = arcade.SpriteList()
         self.gates = arcade.SpriteList()
         self.enemies = arcade.SpriteList()
         self.all_enemies = arcade.SpriteList()
-        # === Partie Nico : collisions arme/interrupteur ===
-        # Ces sets evitent qu'une arme reste collee sur un interrupteur
-        # et le fasse changer d'etat 60 fois par seconde.
         self.sword_touched_switches = set()
         self.boomerang_touched_switches = set()
         # Initialisation du boomerang
         self.boomerang_list = arcade.SpriteList()
         self.boomerang = Boomerang()
         self.boomerang_list.append(self.boomerang)
-
-        # Initialisation future de l’épée
+        # initialisation de l'epee
         self.sword_list = arcade.SpriteList()
 
         # Parcours de toutes les cases de la map pour y placer les bons sprites
@@ -220,12 +192,9 @@ class GameView(arcade.View):
                 elif cell == GridCell.CHEST:
                     self.chests.append(make_tile_animation_sprite(ANIMATION_CHEST, x, y))
 
-                # === Partie Nico : creation des pics ===
                 elif cell == GridCell.SPIKES:
                     self.spikes.append(make_tile_animation_sprite(ANIMATION_SPIKES, x, y))
 
-                # Spinner horizontal : va de gauche à droite entre deux limites
-                # === Partie Nico : creation des spinners ===
                 elif cell == GridCell.SPINNER_HORIZONTAL:
                     spinner = SpinnerSprite(
                         animation=ANIMATION_SPINNER,
@@ -248,7 +217,6 @@ class GameView(arcade.View):
                     self.spinners.append(spinner)
                     self.all_enemies.append(spinner)
 
-                # Spinner vertical : va de bas en haut entre deux limites
                 elif cell == GridCell.SPINNER_VERTICAL:
                     spinner = SpinnerSprite(
                         animation=ANIMATION_SPINNER,
@@ -271,8 +239,6 @@ class GameView(arcade.View):
                     self.spinners.append(spinner)
                     self.all_enemies.append(spinner)
 
-                # Trou dans lequel le joueur peut tomber
-                # === Partie Nico : creation des trous ===
                 elif cell == GridCell.HOLE:
                     self.holes.append(make_tile_sprite(TEXTURE_HOLE, x, y))
 
@@ -294,34 +260,27 @@ class GameView(arcade.View):
                     self.enemies.append(blob)
                     self.all_enemies.append(blob)
 
-        # Création du joueur à sa position de départ sur la map
+        # initialisation des interrupteurs et portails
         for switch_data in map.switches:
-            # La Map contient seulement les donnees; ici on cree les vrais sprites.
             self.switches.append(SwitchSprite(switch_data))
-
         for gate_data in map.gates:
-            # Les portails sont ajoutes dans self.walls au debut.
-            # S'ils sont ouverts, update_gate_states les retirera des murs.
             gate = GateSprite(gate_data)
             self.gates.append(gate)
-            self.walls.append(gate)
+            self.walls.append(gate)# Les portails sont ajoutes dans self.walls au debut
+            self.update_gate_states()# et si ils sont ouverts, update_gate_states les retirera des mur
 
-        self.player = Player(
-            grid_to_pixels(map.player_start_x),
-            grid_to_pixels(map.player_start_y),
-        )
+        # on initialise le joueur à sa position de départ
+        self.player = Player(grid_to_pixels(map.player_start_x),grid_to_pixels(map.player_start_y),)
         self.player_list.append(self.player)
 
         # Initialisation de l’épée
         self.sword_list = arcade.SpriteList()
         self.sword = Sword()
         self.sword_list.append(self.sword)
-        # Arme équipée au début
-        self.active_weapon = WeaponType.BOOMERANG
+        self.active_weapon = WeaponType.BOOMERANG # au début l'arme par défaut est le boomerang
+
         # Moteur physique simple : le joueur est bloqué par les murs
         self.physics_engine = arcade.PhysicsEngineSimple(self.player, self.walls)
-        # On met les portails dans le bon etat des le debut du jeu.
-        self.update_gate_states()
         self.total_crystals = len(self.crystals)
         self.profiler = cProfile.Profile()
         # Batch pour afficher plusieurs textes de HUD efficacement
@@ -374,8 +333,7 @@ class GameView(arcade.View):
         self.window.height = min(MAX_WINDOW_HEIGHT, self.world_height)
 
     def on_draw(self) -> None:
-        # Efface l’écran puis dessine le monde et enfin le HUD
-        self.clear()
+        self.clear()# Efface l’écran puis dessine le monde
 
         with self.camera.activate():
             self.grounds.draw()
@@ -387,7 +345,6 @@ class GameView(arcade.View):
             self.crystals.draw()
             self.keys.draw()
             self.chests.draw()
-            # === Partie Nico : affichage des pics et des armes ===
             self.spikes.draw()
             self.spinners.draw()
             self.player_list.draw()
@@ -414,55 +371,51 @@ class GameView(arcade.View):
         with self.camera_score.activate():
             self.score_batch.draw()
 
-    def restart_if_collision(self, enemies: arcade.SpriteList) -> None:
-        # 1. Test des ennemis (chauve-souris, spinners)
+    def restart_if_collision(self, enemies: arcade.SpriteList) -> None:# fonction qui definit quand le jeu redemarre
+        # On inclut d'abord les ennemis
         if arcade.check_for_collision_with_list(self.player, enemies) and not self.player.indestructible:
             new_game_view = GameView(self.map)
             self.window.show_view(new_game_view)
-         # On s'arrête là si on a déjà touché un ennemi
+        # si le joueur est indestructible les ennemis s'effacent
         elif self.player.indestructible:
             for enemy in arcade.check_for_collision_with_list(self.player, enemies):
                 enemy.remove_from_sprite_lists()
-
-        # 2. Test des trous
+        # les trou aussi font redemarrer le jeu
         for hole in self.holes:
             distance = sqrt((self.player.center_x - hole.center_x) ** 2 + (self.player.center_y - hole.center_y) ** 2)
-            if distance <= 16:
+            if distance <= 16:# cest la distance entre le centre du trou et le joueur pour qu'il meurt
                 new_game_view = GameView(self.map)
                 self.window.show_view(new_game_view)
                 return
 
     def update_spikes(self, delta_time: float) -> None:
-        # === Partie Nico : alternance actif/inactif des pics ===
-        self.spikes.update_animation()
+        self.spikes.update_animation()# je met à jour l'animation des pics à chaque frame
         self.spikes_timer += delta_time
 
-        if self.spikes_timer >= SPIKES_SWITCH_TIME:
+        if self.spikes_timer >= SPIKES_SWITCH_TIME:# verifie si assez de temps est passé pour changer l'état des pics
+            # on remet le timer à zero et on inverse l'etat
             self.spikes_timer = 0.0
             self.spikes_are_active = not self.spikes_are_active
 
             for spike in self.spikes:
+                # je change la transparence des pics pour
+                # differencier les deux etats
                 spike.alpha = 255 if self.spikes_are_active else 100
 
     def restart_if_spikes_collision(self) -> None:
-        if not self.spikes_are_active:
+        if not self.spikes_are_active:# si l'état du pic est inactif il ne se passe rien
             return
-
-        if arcade.check_for_collision_with_list(self.player, self.spikes):
+        if arcade.check_for_collision_with_list(self.player, self.spikes):# a contrario on recommence dès le début
             new_game_view = GameView(self.map)
             self.window.show_view(new_game_view)
 
-    def update_weapon_text(self) -> None:
-        #"""Met à jour le texte de l'arme affiché à l'écran."""
+    def update_weapon_text(self) -> None:# fonction qui affiche à l'écran quel arme on a
         if self.active_weapon == WeaponType.BOOMERANG:
             self.weapon_text.text = "Arme : Boomerang"
         else:
             self.weapon_text.text = "Arme : Épée"
 
-          # Gestion de la caméra : elle suit le joueur
-        # tout en restant dans les limites de la map
-
-    def update_camera_position(self) -> None :
+    def update_camera_position(self) -> None :# fonction qui gère la camera centré sur le joueur
         camera_x = self.player.center_x
         if self.player.center_x < self.window.width / 2:
             camera_x = self.window.width / 2
@@ -478,73 +431,59 @@ class GameView(arcade.View):
         self.camera.position = (camera_x, camera_y)
 
     def update_gate_states(self) -> None:
-        # === Partie Nico : ouverture/fermeture des portails ===
-        # On fabrique un dictionnaire du genre {"first": True, "second": False}.
-        # C'est plus pratique pour evaluer les conditions des portails.
         switch_states = {}
         for switch in self.switches:
             switch_states[switch.id] = switch.is_on
 
-        for gate in self.gates:
-            # On calcule si le portail doit etre ouvert selon sa condition YAML.
+        for gate in self.gates:# On calcule ensuite si le portail doit etre ouvert selon sa condition YAML.
             gate_should_be_open = condition_is_true(gate.open_if, switch_states)
             gate.set_open(gate_should_be_open)
 
-            if gate.is_open:
-                # Ouvert: le joueur peut passer, donc ce n'est plus un mur.
+            if gate.is_open:# Ouvert: le joueur peut passer, donc ce n'est plus un mur
                 if gate in self.walls:
                     self.walls.remove(gate)
-            else:
-                # Ferme: le joueur est bloque, donc le portail redevient un mur.
+            else:# Fermé: le joueur est bloqué, donc le portail redevient un mur.
                 if gate not in self.walls:
                     self.walls.append(gate)
 
-    def toggle_hit_switches(
-        self,
-        weapon: arcade.Sprite,
-        already_touched: set[str],
-    ) -> tuple[set[str], bool]:
-        # === Partie Nico : une arme touche un interrupteur ===
+    # fonction qui detecte lorsqu'une arme touche un interrupteur
+    def inverse_state_switch_hit_switches(self,weapon: arcade.Sprite,already_touched: set[str],) -> tuple[set[str], bool]:
         hit_switches = arcade.check_for_collision_with_list(weapon, self.switches)
-        hit_ids = {switch.id for switch in hit_switches}
+        hit_ids = {switch.id for switch in hit_switches}# on regroupe les id d'interrupteur touché
         has_new_hit = False
 
+        # On change l'etat seulement quand l'arme vient de toucher le switch
         for switch in hit_switches:
-            # On change l'etat seulement quand l'arme vient de toucher le switch.
             if switch.id not in already_touched:
-                switch.toggle()
+                switch.inverse_state_switch()
                 has_new_hit = True
 
         return hit_ids, has_new_hit
 
+    # on gère les interrupteurs touchés par l'épee
     def update_switches_hit_by_sword(self) -> None:
         # Si l'epee n'attaque pas, elle ne peut pas toucher d'interrupteur.
         if not self.sword.active:
             self.sword_touched_switches.clear()
             return
 
-        self.sword_touched_switches, _ = self.toggle_hit_switches(
-            self.sword,
-            self.sword_touched_switches,
-        )
+        self.sword_touched_switches, _= self.inverse_state_switch_hit_switches(self.sword,self.sword_touched_switches,)
 
+    # on gère ensuite les interrupteurs touchés par l'épee
     def update_switches_hit_by_boomerang(self) -> None:
-        # Boomerang inactif: il ne touche rien.
+        # Boomerang inactif: il ne touche rien je sors
         if self.boomerang.state == BoomerangState.INACTIVE:
             self.boomerang_touched_switches.clear()
             return
 
-        hit_ids, has_new_hit = self.toggle_hit_switches(
-            self.boomerang,
-            self.boomerang_touched_switches,
-        )
+        hit_ids, has_new_hit = self.inverse_state_switch_hit_switches(self.boomerang,self.boomerang_touched_switches,)
 
         self.boomerang_touched_switches = hit_ids
         if has_new_hit and self.boomerang.state == BoomerangState.LAUNCHING:
-            # Comme pour un monstre ou un mur, le boomerang revient apres impact.
+        # Comme pour un monstre ou un mur, le boomerang revient apres impact
             self.boomerang.start_return()
 
-    def on_update(self, delta_time: float) -> None:
+    def on_update(self, delta_time: float) -> None:# je relie les switch et les portails à chaque frame
         self.profiler.enable()
         self.do_on_update(delta_time)
         self.profiler.disable()
@@ -564,21 +503,16 @@ class GameView(arcade.View):
         self.restart_if_collision(self.all_enemies)
         self.crystals.update_animation()
         self.keys.update_animation()
+        # on met d'abord à jour l'état du pics en fonction du temps en seconde
+        # puis on test la collision (ordre important)
         self.update_spikes(delta_time)
         self.restart_if_spikes_collision()
         self.spinners.update_animation()
         self.enemies.update_animation()
-        # === Partie Nico : mise a jour boomerang/epee ===
         self.boomerang.update_animation()
         self.boomerang.update_boomerang(self.player, self.walls, self.all_enemies)
         self.sword.update_animation()
-        self.sword.update_sword(
-            delta_time,
-            self.all_enemies,
-            self.crystals,
-            self.player,
-            self.crystal_sound
-        )
+        self.sword.update_sword(delta_time,self.all_enemies,self.crystals,self.player,self.crystal_sound)
         self.update_switches_hit_by_boomerang()
         self.update_switches_hit_by_sword()
         # Apres les collisions avec les armes, les portails peuvent avoir change.
@@ -632,24 +566,18 @@ class GameView(arcade.View):
             case arcade.key.ESCAPE:
                 new_game_view = GameView(self.map)
                 self.window.show_view(new_game_view)
-                # D : utilise l’arme active
-            case arcade.key.D:
-                # === Partie Nico : utiliser l'arme active ===
+            case arcade.key.D:# ici la touche D utilise juste l'arme active
                 if self.active_weapon == WeaponType.BOOMERANG:
                     self.boomerang.launch(self.player)
                 else:
                     self.sword.attack(self.player)
-
-            # R : change d’arme
-            case arcade.key.R:
-                # === Partie Nico : changer d'arme active ===
+            case arcade.key.R:# pour changer d'arme il faut utiliser R
                 if self.active_weapon == WeaponType.BOOMERANG:
                     self.active_weapon = WeaponType.SWORD
                 else:
                     self.active_weapon = WeaponType.BOOMERANG
         self.update_weapon_text()
-        # Recalcule le mouvement du joueur après une touche pressée
-        self.player.player_move()
+        self.player.player_move()# recalcule le mouvement du joueur après une touche présse
 
 
 

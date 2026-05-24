@@ -1,4 +1,26 @@
-# 1) Question de design : Boomerang
+# 1) Question de design : Player
+
+## Comment définissez-vous le type Direction, et pourquoi ?
+
+`Direction` est défini dans `player.py` avec une énumération `Enum`. Elle contient les quatre directions possibles du joueur : `NORTH`, `SOUTH`, `EAST` et `WEST`.
+
+Ce choix permet d’éviter d’utiliser des chaînes de caractères comme `"north"` ou des nombres directement dans le code. Avec une énumération, les valeurs possibles sont limitées et plus lisibles. Par exemple, dans le code, `Direction.SOUTH` est plus clair que `2` ou `"south"`. La classe `Player` possède ensuite un attribut `direction`, initialisé à `Direction.SOUTH`, qui est utilisé pour choisir les animations du joueur et la direction des attaques comme le boomerang ou l’épée.
+
+
+## Ces méthodes reçoivent-elles n’importe quel symbol: int, comme dans on_key_press, ou reçoivent-elles un type de données plus spécifique ? Pourquoi ce choix ?
+
+Dans mon implémentation, la méthode `player_move` de la classe `Player` ne reçoit pas directement le `symbol: int` de Arcade. Les touches sont traitées dans `GameView`, dans `on_key_press` et `on_key_release`, puis elles mettent à jour des booléens du joueur comme `up_pressed`, `down_pressed`, `left_pressed` et `right_pressed`.
+
+Ensuite, `player_move` utilise seulement ces booléens pour calculer `change_x`, `change_y` et mettre à jour la direction du joueur. Ce choix sépare mieux les responsabilités : `GameView` s’occupe des événements clavier Arcade, tandis que `Player` s’occupe seulement de son mouvement. La classe Player dépend donc moins des détails du clavier et reste plus simple à tester et à comprendre.
+
+# 2) Question de design : Trou
+## Comment gérez-vous les trous dans la map et la collision avec le joueur ?
+
+Les trous sont représentés dans `map.py` par la valeur `GridCell.HOLE`. Lors du chargement de la map, les caractères `o` et `O` sont transformés en cases `HOLE`. Dans `GameView`, chaque case trou devient un sprite ajouté dans la liste `self.holes`.
+
+À chaque frame, la méthode `restart_if_collision` vérifie la distance entre le joueur et chaque trou. Si le joueur est assez proche d’un trou, une nouvelle `GameView` est créée avec la même map, ce qui redémarre la partie. Les trous sont donc gérés séparément des murs : ils ne bloquent pas forcément le joueur comme un buisson, mais ils déclenchent une mort quand le joueur marche dessus.
+
+# 3) Question de design : Boomerang
 
 ## Avez-vous défini une classe séparée pour gérer le boomerang, et si oui, étend-elle une classe de sprite ? Pourquoi ?
 
@@ -13,7 +35,7 @@ Les trois états du boomerang sont gérés avec l’énumération `BoomerangStat
 Au début, le boomerang est `INACTIVE`, donc invisible. Quand le joueur appuie sur `D`, la méthode `launch` vérifie qu’il est inactif, puis le fait passer en `LAUNCHING`. Dans cet état, il avance en ligne droite jusqu’à toucher un mur, atteindre sa distance maximale ou devoir revenir après un impact. Ensuite, il passe en `RETURNING`, revient vers la position actuelle du joueur, puis repasse en `INACTIVE` quand il est assez proche.
 
 
-# 2) Question de design : Epée
+# 4) Question de design : Epée
 
 ## Comment gérez-vous le fait que vous avez maintenant deux types d’armes, avec des comportements différents ? Pensez-vous que vous pourriez ajouter une troisième arme sans tout refaire ?
 
@@ -29,7 +51,7 @@ Dans mon implémentation, l’épée et le joueur restent deux sprites séparés
 
 Le comportement actuel est donc que le joueur meurt quand même si un monstre le touche pendant l’attaque, sauf s’il est dans l’état `indestructible` obtenu avec un coffre. Ce comportement est logique : l’épée attaque seulement dans une zone autour du joueur, mais elle ne protège pas automatiquement tout le corps du joueur.
 
-# 3) Question de design : Chauve-Souris
+# 5) Question de design : Chauve-Souris
 
 ## Comment gérez-vous le fait que vous avez maintenant deux types de monstres, avec des comportements différents ? Pensez-vous que vous pourriez ajouter un troisième monstre sans tout refaire ?
 
@@ -39,7 +61,7 @@ Le comportement actuel est donc que le joueur meurt quand même si un monstre le
 
 Pour ajouter un 3e monstre, il suffit de créer une classe `Ghost(Enemy)` avec sa propre méthode `move` — sans toucher à `GameView`.
 
-# 4) Questions de design : Blobs
+# 6) Questions de design : Blobs
 
 ## Qu’avez-vous choisi comme type de nœud TypeNoeud ? Pourquoi ?
 
@@ -62,7 +84,7 @@ Oui. `_build_navmesh` et `load_map_from_string` ne dépendent que de `networkx` 
 -Déplacement du blob(`move`) : Θ(1) par frame on fait des vérifications sur la position du blob en temps constant et on le fait avancé si c'est possible
 
 
-# 5) Question de design : Interrupteurs et portails
+# 7) Question de design : Interrupteurs et portails
 
 ## Quelle structure de données utilisez-vous pour représenter les conditions d’ouverture des portails ? Pourquoi ?
 
@@ -84,7 +106,7 @@ Ensuite, elle parcourt les `m` portails. Pour chaque portail, si la condition es
 
 Au total, la complexité par frame est donc `Θ(n + m)`.
 
-# 6) Analyse des performances
+# 8) Analyse des performances
 
 ## Chargement de la map — facteur : NAVMESH_DENSITY (n nœuds par côté de cellule)
 

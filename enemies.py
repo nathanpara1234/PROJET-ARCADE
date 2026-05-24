@@ -23,7 +23,7 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         self.center_y += self.change_y
 
         if self.is_horizontal:
-                # Le spinner inverse sa direction s’il atteint une borne
+                # On inverse la direction du spinner lorsqu'il attent le point critique
             if self.center_x >= self.max_pos:
                 self.center_x = self.max_pos
                 self.change_x = -SPINNER_SPEED
@@ -38,11 +38,10 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
                 self.center_y = self.min_pos
                 self.change_y = SPINNER_SPEED
 
-# Calcule les limites horizontales d'un spinner horizontal
-# Retourne (left_x, right_x) inclus
-# Le spinner peut se déplacer entre ces deux colonnes
+
+# fonction qui calcule le point limite d'un spinner horizontal
 def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-    # Vérifie que la case de départ contient bien un spinner horizontal
+   # Vérifie que la case de départ est un spinner horizontal
     if game_map.get(start_x, start_y) != GridCell.SPINNER_HORIZONTAL:
         raise ValueError("La position donnée ne contient pas un spinner horizontal.")
 
@@ -54,7 +53,7 @@ def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int)
         left_x = x
         x -= 1
 
-    # On cherche vers la droite jusqu'au premier buisson
+    # On cherche ensuite vers la droite jusqu'au premier buisson
     right_x = start_x
     x = start_x + 1
 
@@ -64,11 +63,9 @@ def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int)
 
     return (left_x, right_x)
 
-
-# Calcule les limites verticales d'un spinner vertical
-# Retourne (bottom_y, top_y) inclus
+# fonction qui calcule la case limite d'un spinner vertical
 def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-    # Vérifie que la case de départ contient bien un spinner vertical
+    # On vérifie d'abord que la case de départ est un spinner vertical
     if game_map.get(start_x, start_y) != GridCell.SPINNER_VERTICAL:
         raise ValueError("La position donnée ne contient pas un spinner vertical.")
 
@@ -80,7 +77,7 @@ def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -
         bottom_y = y
         y -= 1
 
-    # On cherche vers le haut jusqu'au premier buisson
+    # On cherche ensuite vers le haut jusqu'au premier buisson
     top_y = start_y
     y = start_y + 1
 
@@ -88,43 +85,7 @@ def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -
         top_y = y
         y += 1
 
-    return (bottom_y, top_y)
-
-#fct qui regroupe les deux précédentes mais qui est plus complexe
-def compute_spinner_limits(game_map: Map, start_x: int, start_y: int, is_horizontal: bool) -> tuple[int, int]:
-    if is_horizontal:
-        if game_map.get(start_x, start_y) != GridCell.SPINNER_HORIZONTAL:
-            raise ValueError("La position donnée ne contient pas un spinner horizontal.")
-    else:
-        if game_map.get(start_x, start_y) != GridCell.SPINNER_VERTICAL:
-            raise ValueError("La position donnée ne contient pas un spinner vertical.")
-
-    # On cherche vers la gauche (horizontal) ou vers le bas (vertical)
-    min_pos = start_x if is_horizontal else start_y
-    i = min_pos - 1
-
-    while i >= 0:
-        x, y = (i, start_y) if is_horizontal else (start_x, i)
-        if game_map.get(x, y) == GridCell.BUSH:
-            break
-        min_pos = i
-        i -= 1
-
-    # On cherche vers la droite (horizontal) ou vers le haut (vertical)
-    max_pos = start_x if is_horizontal else start_y
-    i = max_pos + 1
-    limit = game_map.width if is_horizontal else game_map.height
-
-    while i < limit:
-        x, y = (i, start_y) if is_horizontal else (start_x, i)
-        if game_map.get(x, y) == GridCell.BUSH:
-            break
-        max_pos = i
-        i += 1
-
-    return (min_pos, max_pos)
-
-
+    return (bottom_y, top_y)#on retourne le point
 
 
 class Enemy(arcade.TextureAnimationSprite):

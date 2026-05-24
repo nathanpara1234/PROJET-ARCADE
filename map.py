@@ -9,47 +9,38 @@ import yaml
 from constants import TILE_SIZE, NAVMESH_DENSITY
 from gate_conditions import GateCondition
 
-
 class InvalidMapFileException(Exception):#je creer une exception speciale car dans
     #la consigne on disait en cas derreur de format lever une InvalidMapFileException
     pass
-
 
 class GridCell(Enum):#car la map est une grille de cellules et chaque cellule peut avoir un type
     #ici cest pratique car au lieu de tester case==Y on teste juste GridCell.X
     GRASS = 0
     BUSH = 1
     CRYSTAL = 2
-    # === Partie Nico : cases trous, spinners, interrupteurs, portails, pics ===
     SPINNER_HORIZONTAL = 3
     SPINNER_VERTICAL = 4
     HOLE = 5
     BAT = 6
     BLOB = 7
-    # Nouvelles cases pour ma partie interrupteurs / portails.
     SWITCH = 8
     GATE = 9
     KEY = 10
     CHEST = 11
     SPIKES = 12
 
-
 @dataclass(frozen=True)
-class SwitchData:#création dune dataclass immuable qui stock seulement les données lues dans la map
+class SwitchData:# un interrupteur a des paramètres qui varient
     id: str
     x: int
     y: int
     is_on: bool
 
-
 @dataclass(frozen=True)
 class GateData:
-    # Le portail a une position et une condition pour savoir s'il est ouvert.
-    # open_if garde la formule logique lue dans le YAML.
     x: int
     y: int
     open_if: GateCondition#dictionnaire YAML
-
 
 @dataclass(frozen=True)
 class SpinnerData:# stock la position et lorientation d'un spinner
@@ -57,119 +48,103 @@ class SpinnerData:# stock la position et lorientation d'un spinner
     y: int
     is_horizontal: bool
 
-
 @dataclass(frozen=True)
-class Map:#creation de la structure abstraite de la carte (immuable)
-    #1. dimension de la map
+class Map:
+    #dimension de la map
     width: int
     height: int
-    #2. position initiale du joueur
+    #position initiale du joueur
     player_start_x: int
     player_start_y: int
-    # 3. grille de cellules qui est une liste de listes
+    #Cellules
     _grid: list[list[GridCell]]
-    # 4. graphe utilisé pour les blobs
     navmesh: nx.Graph[tuple[float, float]]
-    # Les interrupteurs et portails sont stockes dans la Map.
-    # GameView les utilisera ensuite pour creer les sprites.
     switches: list[SwitchData]
     gates: list[GateData]
 
     def get(self, x: int, y: int) -> GridCell:#fonction qui retourne le type de la case en (x,y)
-        if x < 0 or x >= self.width or y < 0 or y >= self.height:#je teste si les coordonnées sont dans la map
+        if ((x < 0) or ((x >= self.width) or (y < 0) or (y >= self.height))):#cas impossible
             raise IndexError("Coordonnees hors de la map")
 
-        return self._grid[y][x]#ici dabord y puis x car on accède d’abord à la ligne y, puis à la colonne x
-        #sachant que _grid est une liste de lignes
+        return self._grid[y][x]#on accède d’abord à la ligne y, puis à la colonne x
 
+## Pour bien gérer le YAML j’ai créé des petites fonctions helper pour éviter de répéter le même code de vérification
+## En effet, le YAML peut en théorie contenir n'importe quoi il faut donc vérifier les différents types
 
-def _as_int(value: object, name: str) -> int:
-    # Petit helper pour verifier les valeurs venant du YAML.
-    #J’ai créé des petites fonctions helper pour éviter de répéter le même code de vérification.
+def _as_int(value: object, name: str) -> int: # vérifie si une valeur est un entier
     if not isinstance(value, int):
         raise InvalidMapFileException(f"{name} doit etre un entier.")
     return value
 
-
-def _as_str(value: object, name: str) -> str:
-    # Meme idee que _as_int, mais pour les textes.
+def _as_str(value: object, name: str) -> str: # Meme idee pour les textes
     if not isinstance(value, str):
         raise InvalidMapFileException(f"{name} doit etre un texte.")
     return value
 
-
-def _check_position(x: int, y: int, width: int, height: int) -> None:
-    # On evite qu'un switch ou un portail soit place en dehors de la carte.
+def _check_position(x: int, y: int, width: int, height: int) -> None:# vérifie qu'une position est dans la carte
     if x < 0 or x >= width or y < 0 or y >= height:
         raise InvalidMapFileException("Une position est hors de la carte.")
 
-
-def _check_formula(formula: object, switch_ids: set[str]) -> GateCondition:
-    # === Partie Nico : verification des conditions YAML des portails ===
-    # Les conditions des portails sont recursives.
-    # Exemple: {"not": [{"switch_is_on": "first"}]}
+def _check_formula(formula: object, switch_ids: set[str]) -> GateCondition:# formule qui vérifie lesconditions logiques des portails
     if not isinstance(formula, dict) or len(formula) != 1:
         raise InvalidMapFileException("Une condition de portail est invalide.")
 
     formula_dict = cast(dict[str, object], formula)
-    key = next(iter(formula_dict))
-    value = formula_dict[key]
+    key = next(iter(formula_dict))# je récupère la seule clé du dictionnaire
+    value = formula_dict[key]# je récupère la valeur associé à la clé
 
-    if key == "switch_is_on":
-        # Cas de base: on demande l'etat d'un interrupteur par son id.
+    # la consigne dit qu'une formule est un dictionnaire avec une seule clé je vérifie donc que c'est bien un dictionnaire avec une seule clé
+    if key == "switch_is_on": # cas simple : si un portail dépend d'un interrupteur celui ci doit bien exister
         switch_id = _as_str(value, "switch_is_on")
         if switch_id not in switch_ids:
             raise InvalidMapFileException("Un portail utilise un interrupteur inconnu.")
 
-    elif key == "not":
-        # not contient une seule sous-condition.
+    elif key == "not": # on verifie que not contient une seule sous-condition
         if not isinstance(value, list) or len(value) != 1:
             raise InvalidMapFileException("not doit contenir une seule condition.")
-        _check_formula(value[0], switch_ids)
+        _check_formula(value[0], switch_ids) # on rappelle la fonction car c'est recursif
 
-    elif key == "and" or key == "or":
-        # and et or contiennent deux sous-conditions.
+    elif (key == "and") or (key == "or"):# on verifie que and et or contiennent chacune deux sous-conditions.
         if not isinstance(value, list) or len(value) != 2:
             raise InvalidMapFileException("and et or doivent contenir deux conditions.")
         _check_formula(value[0], switch_ids)
         _check_formula(value[1], switch_ids)
-
     else:
         raise InvalidMapFileException("Type de condition inconnu.")
 
     return cast(GateCondition, formula_dict)
 
 
-def _read_switches(config: dict[str, object], width: int, height: int) -> list[SwitchData]:
-    # On lit la partie "switches:" de la configuration YAML.
+def _read_switches(config: dict[str, object], width: int, height: int) -> list[SwitchData]:# On lit la partie "switches:" de la configuration YAML
     switch_config = config.get("switches", [])
     if switch_config is None:
         switch_config = []
     if not isinstance(switch_config, list):
         raise InvalidMapFileException("switches doit etre une liste.")
 
-    switches: list[SwitchData] = []
-    # used_ids permet de verifier qu'on ne reutilise pas deux fois le meme id.
-    used_ids: set[str] = set()
+    switches: list[SwitchData] = []# sert à stocker les interrupteurs lu
+    used_ids: set[str] = set()# sert à éviter deux interrupteurs du meme nom
 
-    for switch_dict in switch_config:
+    for switch_dict in switch_config:# on parcourt ensuite chaque interrupteur
+    #et on verifie que chaque element un est un dictionnaire YAML
         if not isinstance(switch_dict, dict):
             raise InvalidMapFileException("Un interrupteur est invalide.")
 
+        # On va ensuite lire l'id, la position et on verifie que celle-ci est dans la map
         switch_dict = cast(dict[str, object], switch_dict)
         switch_id = _as_str(switch_dict.get("id"), "id")
         x = _as_int(switch_dict.get("x"), "x")
         y = _as_int(switch_dict.get("y"), "y")
         _check_position(x, y, width, height)
 
+        # on gere ensuite l'état
         state = switch_dict.get("state", "off")
-        # PyYAML lit "on" comme True et "off" comme False.
+        # PyYAML lit "on" comme True et "off" comme False on doit donce revenir à des str
         if state is True:
             state = "on"
         elif state is False:
             state = "off"
 
-        # Si state n'est pas ecrit dans le YAML, l'interrupteur commence off.
         if state != "on" and state != "off":#on accepte seulement les etats on et off
             raise InvalidMapFileException("L'etat d'un interrupteur doit etre on ou off.")
 
@@ -182,32 +157,29 @@ def _read_switches(config: dict[str, object], width: int, height: int) -> list[S
     return switches
 
 
-def _read_gates(
-    config: dict[str, object],
-    width: int,
-    height: int,
-    switches: list[SwitchData],
-) -> list[GateData]:
-    # On lit la partie "gates:" de la configuration YAML.
+def _read_gates(config: dict[str, object],width: int,height: int,switches: list[SwitchData],) -> list[GateData]:# On lit la partie "gates:" de la configuration YAML.
+    # ici on utilise la meme logique que les interrupteurs
     gate_config = config.get("gates", [])
     if gate_config is None:
         gate_config = []
     if not isinstance(gate_config, list):
         raise InvalidMapFileException("gates doit etre une liste.")
 
+    # on regroupe ensuite l'ensemble des ids existants pour pouvoir vérifier les conditions
     switch_ids = {switch.id for switch in switches}
     gates: list[GateData] = []
 
-    for gate_dict in gate_config:
+    for gate_dict in gate_config:# on vérifie d'abord que chaque entrée est un dictionnaire
         if not isinstance(gate_dict, dict):
             raise InvalidMapFileException("Un portail est invalide.")
 
         gate_dict = cast(dict[str, object], gate_dict)
+        # on lit ensuite la position du portail depuis le dictionnaire et on vérifie qu'il est dans la map grace à check_position
         x = _as_int(gate_dict.get("x"), "x")
         y = _as_int(gate_dict.get("y"), "y")
         _check_position(x, y, width, height)
 
-        # On verifie aussi que la formule open_if est bien ecrite.
+        # On verifie aussi que la formule open_if est bien ecrite
         open_if = _check_formula(gate_dict.get("open_if"), switch_ids)
         gates.append(GateData(x, y, open_if))
 
@@ -282,20 +254,21 @@ def _build_navmesh(cases_marchables: list[tuple[int, int]], cases_buissons: set[
 
     return graph
 
-
+# Sachant que je ne vais pas parser le YAML moi-même, j’utilise yaml.safe_load,
+# puis je vérifie que le résultat est bien un dictionnaire
 def _load_config(lines: list[str]) -> tuple[dict[str, object], int]:
-    # La partie avant le premier --- est la configuration YAML.
+    # je cherche d'abord le premier separateur --- car tout ce qui est avant est du YAML
     try:
         separator = lines.index("---")
     except ValueError:
         raise InvalidMapFileException("Le separateur --- avant la carte est manquant.")
-
+    # ensuite j'utilise la bibliotheque yaml.safe_load car on ne parse pas le YAML a la main
     try:
         config = yaml.safe_load("\n".join(lines[:separator]))
     except yaml.YAMLError as error:
         raise InvalidMapFileException(f"Configuration YAML invalide: {error}")
 
-    if not isinstance(config, dict):
+    if not isinstance(config, dict):# je vérifie encore que la config est bien un dictionnaire
         raise InvalidMapFileException("La configuration doit etre un dictionnaire YAML.")
 
     return cast(dict[str, object], config), separator
@@ -341,8 +314,6 @@ def load_map_from_string(text: str) -> Map:
 
         for x in range(width):
             char = line[x] if x < len(line) else " "
-
-            # === Partie Nico : caracteres ajoutes dans les maps ===
             if char == " ":
                 row.append(GridCell.GRASS)
                 cases_marchables.append((x, y_map))
@@ -352,7 +323,7 @@ def load_map_from_string(text: str) -> Map:
             elif char == "*":
                 row.append(GridCell.CRYSTAL)
                 cases_marchables.append((x, y_map))
-            elif char == "o" or char == "O":
+            elif (char == "o") or (char == "O"):
                 row.append(GridCell.HOLE)
             elif char == "s":
                 row.append(GridCell.SPINNER_HORIZONTAL)
@@ -371,12 +342,10 @@ def load_map_from_string(text: str) -> Map:
                 row.append(GridCell.BLOB)
                 cases_marchables.append((x, y_map))
             elif char == "^":
-                # Le symbole ^ dans le dessin de map veut dire interrupteur.
                 row.append(GridCell.SWITCH)
                 cases_marchables.append((x, y_map))
             elif char == "|":
-                # Le symbole | dans le dessin de map veut dire portail.
-                row.append(GridCell.GATE)
+                row.append(GridCell.GATE)# on ne le met pas comme case où on peut passer dessus car cela dépend de l'interrupteur
             elif char == "k" :
                 row.append(GridCell.KEY)
                 cases_marchables.append((x, y_map))
@@ -397,14 +366,13 @@ def load_map_from_string(text: str) -> Map:
         if grid[switch.y][switch.x] != GridCell.SWITCH:
             raise InvalidMapFileException("Un interrupteur doit etre place sur un ^.")
 
-    for gate in gates:
-        # Meme verification pour les portails: YAML et dessin doivent correspondre.
+    for gate in gates:# Meme verification pour les portails: YAML et dessin doivent correspondre.
         if grid[gate.y][gate.x] != GridCell.GATE:
             raise InvalidMapFileException("Un portail doit etre place sur un |.")
 
     switch_positions = {(switch.x, switch.y) for switch in switches}
     gate_positions = {(gate.x, gate.y) for gate in gates}
-
+    #on verifie l'inverse aussi
     for y in range(height):
         for x in range(width):
             if grid[y][x] == GridCell.SWITCH and (x, y) not in switch_positions:

@@ -5,7 +5,7 @@ from map import Map
 
 from map import load_map_from_string, GridCell
 
-
+#fonction qui verifie si on peut marcher entre deux trous separe
 def test_holes_separated() -> None:
     text = """
         width: 7
@@ -27,7 +27,7 @@ def test_holes_separated() -> None:
 
 
 
-# TEST 2 : TROU COLLE (DOIT TUER)
+# fonction qui test si on marche entre deux trous collé on meurt
 
 def test_holes_adjacent() -> None:
     text = """

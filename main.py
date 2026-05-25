@@ -1,6 +1,6 @@
 import sys
 import arcade
-from constants import *
+from constants import MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, WINDOW_TITLE
 from gameview import GameView
 from map import load_map_from_file, InvalidMapFileException
 

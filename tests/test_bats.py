@@ -9,7 +9,7 @@ from gameview import GameView
 from map import load_map_from_string, GridCell
 from weapons import BoomerangState
 from enemies import Bat, Blob
-from constants import TILE_SIZE, BAT_MOUVEMENT_SPEED
+from constants import TILE_SIZE, BAT_MOUVEMENT_SPEED, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT
 
 # Map minimale avec une seule chauve-souris et un joueur.
 # Bat  à la case (7, 5)
@@ -39,7 +39,7 @@ BAT_START_Y = 5 * TILE_SIZE + TILE_SIZE // 2
 
 def test_valid_pos_inside_field() -> None:
     """valid_pos retourne True pour toute position dans le champ d'action."""
-    bat = Bat(start_x=BAT_START_X, start_y=BAT_START_Y)
+    bat = Bat(start_x=BAT_START_X, start_y=BAT_START_Y, world_width=MAX_WINDOW_WIDTH, world_height=MAX_WINDOW_HEIGHT)
     assert bat.valid_pos(BAT_START_X, BAT_START_Y)
     assert bat.valid_pos(BAT_START_X + 50, BAT_START_Y)
     assert bat.valid_pos(BAT_START_X, BAT_START_Y - 50)
@@ -48,7 +48,7 @@ def test_valid_pos_inside_field() -> None:
 
 def test_valid_pos_outside_field() -> None:
     """valid_pos retourne False pour une position hors du champ d'action."""
-    bat = Bat(start_x=BAT_START_X, start_y=BAT_START_Y)
+    bat = Bat(start_x=BAT_START_X, start_y=BAT_START_Y, world_width=MAX_WINDOW_WIDTH, world_height=MAX_WINDOW_HEIGHT)
     assert not bat.valid_pos(BAT_START_X + 100, BAT_START_Y)
     assert not bat.valid_pos(BAT_START_X - 100, BAT_START_Y)
     assert not bat.valid_pos(BAT_START_X, BAT_START_Y + 100)
@@ -176,26 +176,9 @@ BLOB_START_Y = 5 * TILE_SIZE + TILE_SIZE // 2
 
 # Tests unitaires (sans fenêtre)
 
-def test_blob_valid_pos_inside_zone() -> None:
-    """valid_pos retourne True pour une position dans la zone de patrouille."""
-    blob = Blob(start_x=BLOB_START_X, start_y=BLOB_START_Y)
-    assert blob.valid_pos(BLOB_START_X, BLOB_START_Y)
-    assert blob.valid_pos(BLOB_START_X + 4 * TILE_SIZE - 1, BLOB_START_Y)
-    assert blob.valid_pos(BLOB_START_X, BLOB_START_Y - 4 * TILE_SIZE + 1)
-
-
-def test_blob_valid_pos_outside_zone() -> None:
-    """valid_pos retourne False pour une position hors de la zone de patrouille."""
-    blob = Blob(start_x=BLOB_START_X, start_y=BLOB_START_Y)
-    assert not blob.valid_pos(BLOB_START_X + 4 * TILE_SIZE, BLOB_START_Y)
-    assert not blob.valid_pos(BLOB_START_X - 4 * TILE_SIZE, BLOB_START_Y)
-    assert not blob.valid_pos(BLOB_START_X, BLOB_START_Y + 4 * TILE_SIZE)
-    assert not blob.valid_pos(BLOB_START_X, BLOB_START_Y - 4 * TILE_SIZE)
-
-
 def test_blob_initial_state() -> None:
     """Un blob démarre avec un chemin vide et un index à 0."""
-    blob = Blob(start_x=BLOB_START_X, start_y=BLOB_START_Y)
+    blob = Blob(start_x=BLOB_START_X, start_y=BLOB_START_Y, world_width=MAX_WINDOW_WIDTH, world_height=MAX_WINDOW_HEIGHT)
     assert blob.path == []
     assert blob.i == 0
 

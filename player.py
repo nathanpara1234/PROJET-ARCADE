@@ -65,26 +65,23 @@ class Player(arcade.TextureAnimationSprite):
             self.direction = Direction.WEST
         elif self.right_pressed:
             self.direction = Direction.EAST
-        # En cas que le player est indestructible les animations sont differentes que sans bouclier
+
+        SHIELD_TEXTURES = {
+            Direction.NORTH: TEXTURE_SHIELDED_UP,
+            Direction.SOUTH: TEXTURE_SHIELDED_DOWN,
+            Direction.EAST:  TEXTURE_SHIELDED_RIGHT,
+            Direction.WEST:  TEXTURE_SHIELDED_LEFT,
+        }
+        IDLE_ANIMATIONS = {
+            Direction.NORTH: ANIMATION_PLAYER_IDLE_UP,
+            Direction.SOUTH: ANIMATION_PLAYER_IDLE_DOWN,
+            Direction.EAST:  ANIMATION_PLAYER_IDLE_RIGHT,
+            Direction.WEST:  ANIMATION_PLAYER_IDLE_LEFT,
+        }
         if self.indestructible:
-            if self.direction == Direction.NORTH:
-                self.texture = TEXTURE_SHIELDED_UP
-            elif self.direction == Direction.SOUTH:
-                self.texture = TEXTURE_SHIELDED_DOWN
-            elif self.direction == Direction.EAST:
-                self.texture = TEXTURE_SHIELDED_RIGHT
-            elif self.direction == Direction.WEST:
-                self.texture = TEXTURE_SHIELDED_LEFT
-        # les textures qu'on va montrer à l'écran en fonction de la direction
+            self.texture = SHIELD_TEXTURES[self.direction]
         else:
-            if self.direction == Direction.NORTH:
-                self.animation = ANIMATION_PLAYER_IDLE_UP
-            elif self.direction == Direction.SOUTH:
-                self.animation = ANIMATION_PLAYER_IDLE_DOWN
-            elif self.direction == Direction.EAST:
-                self.animation = ANIMATION_PLAYER_IDLE_RIGHT
-            elif self.direction == Direction.WEST:
-                self.animation = ANIMATION_PLAYER_IDLE_LEFT
+            self.animation = IDLE_ANIMATIONS[self.direction]
 
     def player_become_indestructible(self) -> None:
         self.indestructible = True

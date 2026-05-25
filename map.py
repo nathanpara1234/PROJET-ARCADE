@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from math import sqrt
 from typing import cast
 
@@ -15,7 +15,7 @@ class InvalidMapFileException(Exception):#je creer une exception speciale car da
 
 class GridCell(Enum):#car la map est une grille de cellules et chaque cellule peut avoir un type
     #ici cest pratique car au lieu de tester case==Y on teste juste GridCell.X
-    GRASS = 0
+    GRASS = auto()
     BUSH = 1
     CRYSTAL = 2
     SPINNER_HORIZONTAL = 3
@@ -43,7 +43,7 @@ class GateData:
     open_if: GateCondition#dictionnaire YAML
 
 @dataclass(frozen=True)
-class SpinnerData:# stock la position et lorientation d'un spinner
+class SpinnerData:# stock la position et l'orientation d'un spinner
     x: int
     y: int
     is_horizontal: bool
@@ -187,15 +187,15 @@ def _read_gates(config: dict[str, object],width: int,height: int,switches: list[
 
 
 # fonction qui calcule la position d'un noeud dans une case
-def _node_for_cell(x: int, y: int, i: int, j: int) -> tuple[float, float]:
+def node_for_cell(x: int, y: int, i: int, j: int) -> tuple[float, float]:
     node_x = round(x * TILE_SIZE + (2 * i + 1) * TILE_SIZE / (2 * NAVMESH_DENSITY), 6)
     node_y = round(y * TILE_SIZE + (2 * j + 1) * TILE_SIZE / (2 * NAVMESH_DENSITY), 6)
     return (node_x, node_y)
 
 
-def _build_navmesh(cases_marchables: list[tuple[int, int]], cases_buissons: set[tuple[int, int]]) -> nx.Graph[tuple[float, float]]:
+def build_navmesh(cases_marchables: list[tuple[int, int]], cases_buissons: set[tuple[int, int]]) -> nx.Graph[tuple[float, float]]:
     '''1)  on crée les noeuds
-    Pour chaque case marchable, on crée n×n noeuds
+    Pour chaque case marchable, on crée n*n noeuds
     Pour chaque noeud, on regarde les 9 cases autour de sa case (voisines + elle-même).
     Si une case voisine est un buisson, on calcule le centre pixel de ce buisson.
     Si le noeud est à moins de TILE_SIZE du centre du buisson, on le supprime
@@ -203,7 +203,7 @@ def _build_navmesh(cases_marchables: list[tuple[int, int]], cases_buissons: set[
     Pour chaque noeud, on relie ses voisins directs (haut, bas, gauche, droite)
     et ses voisins diagonaux, avec un poids qui correspond à la distance'''
 
-    step      = TILE_SIZE / NAVMESH_DENSITY   #pour le poid des arrêtes
+    step = TILE_SIZE / NAVMESH_DENSITY   #pour le poid des arrêtes
     step_diag = step * sqrt(2)
 
     # on créé les noeuds sur les cases marchable
@@ -213,7 +213,7 @@ def _build_navmesh(cases_marchables: list[tuple[int, int]], cases_buissons: set[
     for cell_x, cell_y in cases_marchables:
         for i in range(NAVMESH_DENSITY):
             for j in range(NAVMESH_DENSITY):
-                pos = _node_for_cell(cell_x, cell_y, i, j)
+                pos = node_for_cell(cell_x, cell_y, i, j)
 
                 trop_proche = False
                 # On parcour les 9 cases autour du noeud (dx et dy valent -1, 0 ou 1) pour toutes les directions
@@ -361,12 +361,12 @@ def load_map_from_string(text: str) -> Map:
         grid.insert(0, row)
 
     for switch in switches:
-        # Si le YAML dit qu'il y a un switch ici,
+        # s i le YAML dit qu'il y a un switch ici,
         # on verifie qu'il y a bien un ^ dans le dessin.
         if grid[switch.y][switch.x] != GridCell.SWITCH:
             raise InvalidMapFileException("Un interrupteur doit etre place sur un ^.")
 
-    for gate in gates:# Meme verification pour les portails: YAML et dessin doivent correspondre.
+    for gate in gates:# meme verification pour les portails
         if grid[gate.y][gate.x] != GridCell.GATE:
             raise InvalidMapFileException("Un portail doit etre place sur un |.")
 
@@ -395,7 +395,7 @@ def load_map_from_string(text: str) -> Map:
         player_start_x=player_start_x,
         player_start_y=player_start_y,
         _grid=grid,
-        navmesh=_build_navmesh(cases_marchables, cases_buissons),
+        navmesh=build_navmesh(cases_marchables, cases_buissons),
         switches=switches,
         gates=gates,
     )

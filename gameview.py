@@ -1,100 +1,23 @@
-from math import sqrt
-import networkx as nx
 from typing import Final
 import cProfile
 import arcade
-from pyglet.graphics import Batch
-from enemies import (
-    Enemy,
-    Bat,
-    SpinnerSprite,
-    Blob,
-    compute_horizontal_spinner_limits,
-    compute_vertical_spinner_limits,
-    )
-from constants import *
-from textures import *
+from text import Text
+from world_builder import build_world
+from systems import update_camera_position, update_enemies, update_collectibles
+from enemies import Enemy, SpinnerSprite
+from constants import TILE_SIZE, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT
 from player import Player
-from enum import Enum
-from weapons import *
-from gate_conditions import GateCondition, condition_is_true
-
-from map import (
-    Map,
-    GridCell,
-    GateData,
-    SwitchData,
+from weapons import Boomerang, Sword
+from map import Map
+from sprite import grid_to_pixels, SwitchSprite, GateSprite, WeaponType
+from interactions import (
+    restart_if_collision,
+    update_spikes,
+    restart_if_spikes_collision,
+    update_gate_states,
+    update_switches_hit_by_sword,
+    update_switches_hit_by_boomerang,
 )
-
-# Transforme une coordonnée de grille en coordonné en pixel
-def grid_to_pixels(i: int) -> int:
-    return i * TILE_SIZE + (TILE_SIZE // 2)
-
-
-def make_tile_sprite(texture: arcade.Texture, x: int, y: int) -> arcade.Sprite:
-    return arcade.Sprite(
-        texture,
-        scale=SCALE,
-        center_x=grid_to_pixels(x),
-        center_y=grid_to_pixels(y),
-    )
-
-
-def make_tile_animation_sprite(
-    animation: arcade.TextureAnimation,
-    x: int,
-    y: int,
-) -> arcade.TextureAnimationSprite:
-    return arcade.TextureAnimationSprite(
-        animation=animation,
-        scale=SCALE,
-        center_x=grid_to_pixels(x),
-        center_y=grid_to_pixels(y),
-    )
-
-class SwitchSprite(arcade.Sprite):
-    # Sprite visible de l'interrupteur.
-    # Il garde aussi son id pour que les portails puissent le retrouver.
-    id: str
-    is_on: bool
-
-    def __init__(self, switch: SwitchData) -> None:
-        # On choisit la texture selon l'etat de depart lu dans la map.
-        texture = TEXTURE_SWITCH_ON if switch.is_on else TEXTURE_SWITCH_OFF
-        super().__init__(texture,scale=0.25,center_x=grid_to_pixels(switch.x),center_y=grid_to_pixels(switch.y),)
-        self.id = switch.id
-        self.is_on = switch.is_on
-
-    def inverse_state_switch(self) -> None:# toggle veut dire "inverser": on devient on si on etait off, et inversement.
-        self.is_on = not self.is_on
-        if self.is_on:
-            self.texture = TEXTURE_SWITCH_ON
-        else:
-            self.texture = TEXTURE_SWITCH_OFF
-
-class GateSprite(arcade.Sprite):
-    # On céer le sprite visible du portail.
-    # open_if est la condition qui dit quand ce portail est ouvert.
-    open_if: GateCondition
-    is_open: bool
-
-    def __init__(self, gate: GateData) -> None:
-        # Au depart on cree le sprite avec la texture fermee.
-        # update_gate_states corrigera ensuite si le portail doit etre ouvert.
-        super().__init__(TEXTURE_GATE_CLOSED,scale=SCALE,center_x=grid_to_pixels(gate.x),center_y=grid_to_pixels(gate.y),)
-        self.open_if = gate.open_if
-        self.is_open = False
-
-    def set_open(self, is_open: bool) -> None:# fonction qui change l'etat logique et la texture du portail
-        self.is_open = is_open
-        if self.is_open:
-            self.texture = TEXTURE_GATE_OPEN
-        else:
-            self.texture = TEXTURE_GATE_CLOSED
-
-class WeaponType(Enum):
-    BOOMERANG = 1
-    SWORD = 2
 
 class GameView(arcade.View):
     grounds: Final[arcade.SpriteList[arcade.Sprite]]
@@ -110,7 +33,7 @@ class GameView(arcade.View):
     gates: Final[arcade.SpriteList[GateSprite]]
     physics_engine: Final[arcade.PhysicsEngineSimple]
     camera: Final[arcade.camera.Camera2D]
-    camera_score: Final[arcade.camera.Camera2D]
+    text : Text
     world_width: Final[int]
     world_height: Final[int]
     boomerang_list: Final[arcade.SpriteList[arcade.TextureAnimationSprite]]
@@ -133,141 +56,43 @@ class GameView(arcade.View):
         self.map = map
         self.background_color = arcade.csscolor.CORNFLOWER_BLUE
 
-        # Listes de sprites organisées par type
-        self.grounds = arcade.SpriteList(use_spatial_hash=True)
-        self.walls = arcade.SpriteList(use_spatial_hash=True)
-        self.crystals = arcade.SpriteList(use_spatial_hash=True)
         self.crystal_sound = arcade.load_sound(":resources:sounds/coin5.wav")
-        self.chests = arcade.SpriteList(use_spatial_hash=True)
         self.chests_sound = arcade.load_sound(":resources:sounds/secret2.wav")
-        self.keys = arcade.SpriteList(use_spatial_hash=True)
         self.keys_sound = arcade.load_sound(":resources:sounds/upgrade1.wav")
-        self.spikes = arcade.SpriteList(use_spatial_hash=True)
-        self.spinners = arcade.SpriteList()
         self.player_list = arcade.SpriteList()
         self.camera = arcade.camera.Camera2D()
-        self.camera_score = arcade.camera.Camera2D()
-        # Dimensions du monde en pixels
         self.world_width = map.width * TILE_SIZE
         self.world_height = map.height * TILE_SIZE
-        # Initialisation des spikes
         self.spikes_are_active = True
         self.spikes_timer = 0.0
-        # initialisation des trou
-        self.holes = arcade.SpriteList()
-        #initialisation des portail et interrupteur
         self.switches = arcade.SpriteList()
         self.gates = arcade.SpriteList()
-        self.enemies = arcade.SpriteList()
-        self.all_enemies = arcade.SpriteList()
         self.sword_touched_switches = set()
         self.boomerang_touched_switches = set()
-        # Initialisation du boomerang
         self.boomerang_list = arcade.SpriteList()
         self.boomerang = Boomerang()
         self.boomerang_list.append(self.boomerang)
-        # initialisation de l'epee
         self.sword_list = arcade.SpriteList()
 
-        # Parcours de toutes les cases de la map pour y placer les bons sprites
-        for x in range(map.width):
-            for y in range(map.height):
+        world = build_world(self.map)
+        self.grounds = world.grounds
+        self.walls = world.walls
+        self.crystals = world.crystals
+        self.keys = world.keys
+        self.chests = world.chests
+        self.spikes = world.spikes
+        self.spinners = world.spinners
+        self.holes = world.holes
+        self.enemies = world.enemies
+        self.all_enemies = world.all_enemies
 
-                # Chaque case reçoit d’abord un sol
-                self.grounds.append(make_tile_sprite(TEXTURE_GRASS, x, y))
-
-                cell = map.get(x, y)
-
-                # Si la case contient un buisson, il devient un mur
-                if cell == GridCell.BUSH:
-                    self.walls.append(make_tile_sprite(TEXTURE_BUSH, x, y))
-
-                # Si la case contient un cristal, on crée un sprite animé
-                elif cell == GridCell.CRYSTAL:
-                    self.crystals.append(make_tile_animation_sprite(ANIMATION_CRYSTALS, x, y))
-
-                elif cell == GridCell.KEY :
-                    self.keys.append(make_tile_animation_sprite(ANIMATION_KEY,x ,y))
-
-                elif cell == GridCell.CHEST:
-                    self.chests.append(make_tile_animation_sprite(ANIMATION_CHEST, x, y))
-
-                elif cell == GridCell.SPIKES:
-                    self.spikes.append(make_tile_animation_sprite(ANIMATION_SPIKES, x, y))
-
-                elif cell == GridCell.SPINNER_HORIZONTAL:
-                    spinner = SpinnerSprite(
-                        animation=ANIMATION_SPINNER,
-                        scale=SCALE,
-                        center_x=grid_to_pixels(x),
-                        center_y=grid_to_pixels(y),
-                    )
-
-                    spinner.is_horizontal = True
-
-                    # Calcule les bornes du déplacement horizontal
-                    left_x, right_x = compute_horizontal_spinner_limits(map, x, y)
-
-                    spinner.min_pos = grid_to_pixels(left_x)
-                    spinner.max_pos = grid_to_pixels(right_x)
-
-                    spinner.change_x = SPINNER_SPEED
-                    spinner.change_y = 0
-
-                    self.spinners.append(spinner)
-                    self.all_enemies.append(spinner)
-
-                elif cell == GridCell.SPINNER_VERTICAL:
-                    spinner = SpinnerSprite(
-                        animation=ANIMATION_SPINNER,
-                        scale=SCALE,
-                        center_x=grid_to_pixels(x),
-                        center_y=grid_to_pixels(y),
-                    )
-
-                    spinner.is_horizontal = False
-
-                    # Calcule les bornes du déplacement vertical
-                    bottom_y, top_y = compute_vertical_spinner_limits(map, x, y)
-
-                    spinner.min_pos = grid_to_pixels(bottom_y)
-                    spinner.max_pos = grid_to_pixels(top_y)
-
-                    spinner.change_x = 0
-                    spinner.change_y = SPINNER_SPEED
-
-                    self.spinners.append(spinner)
-                    self.all_enemies.append(spinner)
-
-                elif cell == GridCell.HOLE:
-                    self.holes.append(make_tile_sprite(TEXTURE_HOLE, x, y))
-
-                elif cell == GridCell.BAT:
-                    bat = Bat(
-                        start_x=grid_to_pixels(x),
-                        start_y=grid_to_pixels(y),
-                        world_width=map.width * TILE_SIZE,
-                        world_height=map.height * TILE_SIZE,
-                    )
-                    self.enemies.append(bat)
-                    self.all_enemies.append(bat)
-
-                elif cell == GridCell.BLOB:
-                    blob = Blob(
-                        start_x=grid_to_pixels(x),
-                        start_y=grid_to_pixels(y),
-                    )
-                    self.enemies.append(blob)
-                    self.all_enemies.append(blob)
-
-        # initialisation des interrupteurs et portails
-        for switch_data in map.switches:
+        for switch_data in self.map.switches:
             self.switches.append(SwitchSprite(switch_data))
-        for gate_data in map.gates:
+        for gate_data in self.map.gates:
             gate = GateSprite(gate_data)
             self.gates.append(gate)
-            self.walls.append(gate)# Les portails sont ajoutes dans self.walls au debut
-            self.update_gate_states()# et si ils sont ouverts, update_gate_states les retirera des mur
+            self.walls.append(gate)
+        update_gate_states(self.switches, self.gates, self.walls)
 
         # on initialise le joueur à sa position de départ
         self.player = Player(grid_to_pixels(map.player_start_x),grid_to_pixels(map.player_start_y),)
@@ -281,49 +106,8 @@ class GameView(arcade.View):
 
         # Moteur physique simple : le joueur est bloqué par les murs
         self.physics_engine = arcade.PhysicsEngineSimple(self.player, self.walls)
-        self.total_crystals = len(self.crystals)
         self.profiler = cProfile.Profile()
-        # Batch pour afficher plusieurs textes de HUD efficacement
-        self.score_batch = Batch()
-
-        # Texte du score
-        self.score_text = arcade.Text(
-            text=f"{self.player.score} / {self.total_crystals}",
-            x=20,
-            y=self.window.height - 40,
-            color=arcade.color.WHITE,
-            font_size=18,
-            batch=self.score_batch
-        )
-
-        self.key_text = arcade.Text(
-            text=f"Clés : {self.player.key}",
-            x=350,
-            y=self.window.height - 40,
-            color=arcade.color.WHITE,
-            font_size=18,
-            batch=self.score_batch
-        )
-
-        self.weapon_text = arcade.Text(
-            text="Arme : Boomerang", # Texte par défaut
-            x=20,
-            y=self.window.height - 70,
-            color=arcade.color.WHITE,
-            font_size=18,
-            batch=self.score_batch
-        )
-
-        self.end_text = arcade.Text(
-            text="",
-            x=self.window.width // 2,
-            y=self.window.height // 2,
-            color=arcade.color.YELLOW,
-            font_size=72,
-            anchor_x="center",
-            anchor_y="center",
-            batch=self.score_batch
-        )
+        self.hud = Text(self.window, self.player, len(self.crystals))
 
 
     def on_show_view(self) -> None:
@@ -331,6 +115,7 @@ class GameView(arcade.View):
         # sans dépasser les dimensions maximales autorisées
         self.window.width = min(MAX_WINDOW_WIDTH, self.world_width)
         self.window.height = min(MAX_WINDOW_HEIGHT, self.world_height)
+        self.hud.update_positions()
 
     def on_draw(self) -> None:
         self.clear()# Efface l’écran puis dessine le monde
@@ -347,7 +132,8 @@ class GameView(arcade.View):
             self.chests.draw()
             self.spikes.draw()
             self.spinners.draw()
-            self.player_list.draw()
+            if not self.sword.active:  # le sprite d'attaque contient déjà le joueur, évite le doublon
+                self.player_list.draw()
             self.boomerang_list.draw()
             self.sword_list.draw()
             self.enemies.draw()
@@ -368,120 +154,11 @@ class GameView(arcade.View):
             for enemy in self.enemies:
                 if isinstance(enemy, Blob) and enemy.path and len(enemy.path) >= 2:
                     arcade.draw_line_strip(enemy.path, arcade.color.RED, 2)'''
-        with self.camera_score.activate():
-            self.score_batch.draw()
+        self.hud.draw()
 
-    def restart_if_collision(self, enemies: arcade.SpriteList) -> None:# fonction qui definit quand le jeu redemarre
-        # On inclut d'abord les ennemis
-        if arcade.check_for_collision_with_list(self.player, enemies) and not self.player.indestructible:
-            new_game_view = GameView(self.map)
-            self.window.show_view(new_game_view)
-        # si le joueur est indestructible les ennemis s'effacent
-        elif self.player.indestructible:
-            for enemy in arcade.check_for_collision_with_list(self.player, enemies):
-                enemy.remove_from_sprite_lists()
-        # les trou aussi font redemarrer le jeu
-        for hole in self.holes:
-            distance = sqrt((self.player.center_x - hole.center_x) ** 2 + (self.player.center_y - hole.center_y) ** 2)
-            if distance <= 16:# cest la distance entre le centre du trou et le joueur pour qu'il meurt
-                new_game_view = GameView(self.map)
-                self.window.show_view(new_game_view)
-                return
-
-    def update_spikes(self, delta_time: float) -> None:
-        self.spikes.update_animation()# je met à jour l'animation des pics à chaque frame
-        self.spikes_timer += delta_time
-
-        if self.spikes_timer >= SPIKES_SWITCH_TIME:# verifie si assez de temps est passé pour changer l'état des pics
-            # on remet le timer à zero et on inverse l'etat
-            self.spikes_timer = 0.0
-            self.spikes_are_active = not self.spikes_are_active
-
-            for spike in self.spikes:
-                # je change la transparence des pics pour
-                # differencier les deux etats
-                spike.alpha = 255 if self.spikes_are_active else 100
-
-    def restart_if_spikes_collision(self) -> None:
-        if not self.spikes_are_active:# si l'état du pic est inactif il ne se passe rien
-            return
-        if arcade.check_for_collision_with_list(self.player, self.spikes):# a contrario on recommence dès le début
-            new_game_view = GameView(self.map)
-            self.window.show_view(new_game_view)
-
-    def update_weapon_text(self) -> None:# fonction qui affiche à l'écran quel arme on a
-        if self.active_weapon == WeaponType.BOOMERANG:
-            self.weapon_text.text = "Arme : Boomerang"
-        else:
-            self.weapon_text.text = "Arme : Épée"
-
-    def update_camera_position(self) -> None :# fonction qui gère la camera centré sur le joueur
-        camera_x = self.player.center_x
-        if self.player.center_x < self.window.width / 2:
-            camera_x = self.window.width / 2
-        elif self.player.center_x > self.world_width - self.window.width / 2:
-            camera_x = self.world_width - self.window.width / 2
-
-        camera_y = self.player.center_y
-        if self.player.center_y < self.window.height / 2:
-            camera_y = self.window.height / 2
-        elif self.player.center_y > self.world_height - self.window.height / 2:
-            camera_y = self.world_height - self.window.height / 2
-
-        self.camera.position = (camera_x, camera_y)
-
-    def update_gate_states(self) -> None:
-        switch_states = {}
-        for switch in self.switches:
-            switch_states[switch.id] = switch.is_on
-
-        for gate in self.gates:# On calcule ensuite si le portail doit etre ouvert selon sa condition YAML.
-            gate_should_be_open = condition_is_true(gate.open_if, switch_states)
-            gate.set_open(gate_should_be_open)
-
-            if gate.is_open:# Ouvert: le joueur peut passer, donc ce n'est plus un mur
-                if gate in self.walls:
-                    self.walls.remove(gate)
-            else:# Fermé: le joueur est bloqué, donc le portail redevient un mur.
-                if gate not in self.walls:
-                    self.walls.append(gate)
-
-    # fonction qui detecte lorsqu'une arme touche un interrupteur
-    def inverse_state_switch_hit_switches(self,weapon: arcade.Sprite,already_touched: set[str],) -> tuple[set[str], bool]:
-        hit_switches = arcade.check_for_collision_with_list(weapon, self.switches)
-        hit_ids = {switch.id for switch in hit_switches}# on regroupe les id d'interrupteur touché
-        has_new_hit = False
-
-        # On change l'etat seulement quand l'arme vient de toucher le switch
-        for switch in hit_switches:
-            if switch.id not in already_touched:
-                switch.inverse_state_switch()
-                has_new_hit = True
-
-        return hit_ids, has_new_hit
-
-    # on gère les interrupteurs touchés par l'épee
-    def update_switches_hit_by_sword(self) -> None:
-        # Si l'epee n'attaque pas, elle ne peut pas toucher d'interrupteur.
-        if not self.sword.active:
-            self.sword_touched_switches.clear()
-            return
-
-        self.sword_touched_switches, _= self.inverse_state_switch_hit_switches(self.sword,self.sword_touched_switches,)
-
-    # on gère ensuite les interrupteurs touchés par l'épee
-    def update_switches_hit_by_boomerang(self) -> None:
-        # Boomerang inactif: il ne touche rien je sors
-        if self.boomerang.state == BoomerangState.INACTIVE:
-            self.boomerang_touched_switches.clear()
-            return
-
-        hit_ids, has_new_hit = self.inverse_state_switch_hit_switches(self.boomerang,self.boomerang_touched_switches,)
-
-        self.boomerang_touched_switches = hit_ids
-        if has_new_hit and self.boomerang.state == BoomerangState.LAUNCHING:
-        # Comme pour un monstre ou un mur, le boomerang revient apres impact
-            self.boomerang.start_return()
+    def restart(self) -> None :
+        new_game_view = GameView(self.map)
+        self.window.show_view(new_game_view)
 
     def on_update(self, delta_time: float) -> None:# je relie les switch et les portails à chaque frame
         self.profiler.enable()
@@ -499,58 +176,26 @@ class GameView(arcade.View):
             if self.player.indestructibility_timer <= 0:
                 self.player.indestructible = False
                 self.player.indestructibility_timer = 0
-        self.update_camera_position()
-        self.restart_if_collision(self.all_enemies)
+        update_camera_position(self.camera, self.player, self.window, self.world_width, self.world_height)
+        restart_if_collision(self.player, self.all_enemies, self.holes, self.restart)
         self.crystals.update_animation()
         self.keys.update_animation()
         # on met d'abord à jour l'état du pics en fonction du temps en seconde
         # puis on test la collision (ordre important)
-        self.update_spikes(delta_time)
-        self.restart_if_spikes_collision()
+        self.spikes_timer, self.spikes_are_active = update_spikes(self.spikes, self.spikes_timer, self.spikes_are_active, delta_time)
+        restart_if_spikes_collision(self.spikes_are_active, self.player, self.spikes, self.restart)
         self.spinners.update_animation()
         self.enemies.update_animation()
         self.boomerang.update_animation()
         self.boomerang.update_boomerang(self.player, self.walls, self.all_enemies)
         self.sword.update_animation()
         self.sword.update_sword(delta_time,self.all_enemies,self.crystals,self.player,self.crystal_sound)
-        self.update_switches_hit_by_boomerang()
-        self.update_switches_hit_by_sword()
+        self.boomerang_touched_switches = update_switches_hit_by_boomerang(self.boomerang, self.boomerang_touched_switches, self.switches)
+        self.sword_touched_switches = update_switches_hit_by_sword(self.sword, self.sword_touched_switches, self.switches)
         # Apres les collisions avec les armes, les portails peuvent avoir change.
-        self.update_gate_states()
-        for spinner in self.spinners:
-            spinner.spinner_move()
-        for enemy in self.enemies:
-            distance = sqrt((enemy.center_x - self.player.center_x)**2 + (enemy.center_y - self.player.center_y)**2)
-            if distance <= 5 * TILE_SIZE and arcade.has_line_of_sight(enemy.position, self.player.position, self.walls):
-                enemy.move(self.map.navmesh, self.player.position)
-            else:
-                enemy.move(self.map.navmesh, None)
-
-        # Détection de collision entre le joueur et les cristaux
-        collision_crystals = arcade.check_for_collision_with_list(self.player, self.crystals)
-        for crystal in collision_crystals:
-            crystal.remove_from_sprite_lists()
-            arcade.play_sound(self.crystal_sound)
-            self.player.score += 1
-            self.score_text.text = f"{self.player.score} / {self.total_crystals}"
-            if self.player.score >= self.total_crystals:
-                self.end_text.text = "END"
-
-        collision_keys = arcade.check_for_collision_with_list(self.player, self.keys)
-        for key in collision_keys:
-            key.remove_from_sprite_lists()
-            arcade.play_sound(self.keys_sound)
-            self.player.key += 1
-            self.key_text.text = f"Clés : {self.player.key}"
-
-        collision_chests = arcade.check_for_collision_with_list(self.player, self.chests)
-        for chest in collision_chests:
-            if self.player.key > 0:
-                chest.texture = TEXTURE_EMPTY_CHEST
-                arcade.play_sound(self.chests_sound)
-                self.player.key -= 1
-                self.key_text.text = f"Clés : {self.player.key}"
-                self.player.player_become_indestructible()
+        update_gate_states(self.switches, self.gates, self.walls)
+        update_enemies(self.spinners, self.enemies, self.player, self.walls, self.map.navmesh)
+        update_collectibles(self.player, self.crystals, self.crystal_sound, self.keys, self.keys_sound, self.chests, self.chests_sound, self.hud)
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         match symbol:
@@ -564,8 +209,7 @@ class GameView(arcade.View):
             case arcade.key.RIGHT:
                 self.player.right_pressed = True
             case arcade.key.ESCAPE:
-                new_game_view = GameView(self.map)
-                self.window.show_view(new_game_view)
+                self.restart()
             case arcade.key.D:# ici la touche D utilise juste l'arme active
                 if self.active_weapon == WeaponType.BOOMERANG:
                     self.boomerang.launch(self.player)
@@ -576,7 +220,7 @@ class GameView(arcade.View):
                     self.active_weapon = WeaponType.SWORD
                 else:
                     self.active_weapon = WeaponType.BOOMERANG
-        self.update_weapon_text()
+        self.hud.update_weapon(self.active_weapon)
         self.player.player_move()# recalcule le mouvement du joueur après une touche présse
 
 

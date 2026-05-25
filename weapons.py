@@ -1,16 +1,15 @@
-from enemies import *
 from enum import Enum
 from math import sqrt
 import arcade
-from constants import *
-from textures import *
-from player import Direction, Player
+from constants import SCALE, BOOMERANG_SPEED, BOOMERANG_MAX_DISTANCE, TILE_SIZE
 from textures import (
+    ANIMATION_BOOMERANG,
     ANIMATION_SWORD_DOWN,
     ANIMATION_SWORD_UP,
     ANIMATION_SWORD_LEFT,
     ANIMATION_SWORD_RIGHT,
 )
+from player import Direction, Player
 class Weapon(arcade.TextureAnimationSprite):
     active: bool
 

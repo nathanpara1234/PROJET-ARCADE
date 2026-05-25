@@ -3,10 +3,10 @@ from math import cos, sin, sqrt
 import random
 import arcade
 from abc import abstractmethod
-from textures import *
-from constants import *
+from textures import ANIMATION_BAT, ANIMATION_BLOB, ANIMATION_SPINNER
+from constants import SPINNER_SPEED, SCALE, TILE_SIZE, BAT_MOUVEMENT_SPEED, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, BAT_FRAQUENCY_MODIF_DIRECTION, BLOB_MOUVEMENT_SPEED, BAT_ZONE_WIDTH, BLOB_ZONE_WIDTH
 import math
-from player import *
+from player import Player
 from map import (
     Map,
     GridCell,
@@ -18,74 +18,66 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
     min_pos: int
     max_pos: int
 
+
+    def bounce(self, pos: float, speed: float) -> tuple[float, float]:
+        # demi tour si le spinner atteint une limite, sinon il continu
+        if pos >= self.max_pos:
+            return (self.max_pos,
+                    -SPINNER_SPEED)
+        elif pos <= self.min_pos:
+            return (self.min_pos,
+                    SPINNER_SPEED)
+        return (pos,
+                speed)
+
     def spinner_move(self) -> None:
+        # déplace le spinner puis vérifie s'il doit faire demi tour
         self.center_x += self.change_x
         self.center_y += self.change_y
 
         if self.is_horizontal:
-                # On inverse la direction du spinner lorsqu'il attent le point critique
-            if self.center_x >= self.max_pos:
-                self.center_x = self.max_pos
-                self.change_x = -SPINNER_SPEED
-            elif self.center_x <= self.min_pos:
-                self.center_x = self.min_pos
-                self.change_x = SPINNER_SPEED
+            (self.center_x, self.change_x) = self.bounce(self.center_x, self.change_x)
         else:
-            if self.center_y >= self.max_pos:
-                self.center_y = self.max_pos
-                self.change_y = -SPINNER_SPEED
-            elif self.center_y <= self.min_pos:
-                self.center_y = self.min_pos
-                self.change_y = SPINNER_SPEED
+            (self.center_y, self.change_y) = self.bounce(self.center_y, self.change_y)
 
-
-# fonction qui calcule le point limite d'un spinner horizontal
 def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-   # Vérifie que la case de départ est un spinner horizontal
-    if game_map.get(start_x, start_y) != GridCell.SPINNER_HORIZONTAL:
-        raise ValueError("La position donnée ne contient pas un spinner horizontal.")
-
-    # On cherche vers la gauche jusqu'au premier buisson
     left_x = start_x
-    x = start_x - 1
+    i = start_x - 1
+    while i >= 0:
+        if game_map.get(i, start_y) == GridCell.BUSH:
+            break
+        left_x = i
+        i -= 1
 
-    while x >= 0 and game_map.get(x, start_y) != GridCell.BUSH:
-        left_x = x
-        x -= 1
-
-    # On cherche ensuite vers la droite jusqu'au premier buisson
     right_x = start_x
-    x = start_x + 1
-
-    while x < game_map.width and game_map.get(x, start_y) != GridCell.BUSH:
-        right_x = x
-        x += 1
+    i = start_x + 1
+    while i < game_map.width:
+        if game_map.get(i, start_y) == GridCell.BUSH:
+            break
+        right_x = i
+        i += 1
 
     return (left_x, right_x)
 
-# fonction qui calcule la case limite d'un spinner vertical
+
 def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-    # On vérifie d'abord que la case de départ est un spinner vertical
-    if game_map.get(start_x, start_y) != GridCell.SPINNER_VERTICAL:
-        raise ValueError("La position donnée ne contient pas un spinner vertical.")
-
-    # On cherche vers le bas jusqu'au premier buisson
     bottom_y = start_y
-    y = start_y - 1
+    i = start_y - 1
+    while i >= 0:
+        if game_map.get(start_x, i) == GridCell.BUSH:
+            break
+        bottom_y = i
+        i -= 1
 
-    while y >= 0 and game_map.get(start_x, y) != GridCell.BUSH:
-        bottom_y = y
-        y -= 1
-
-    # On cherche ensuite vers le haut jusqu'au premier buisson
     top_y = start_y
-    y = start_y + 1
+    i = start_y + 1
+    while i < game_map.height:
+        if game_map.get(start_x, i) == GridCell.BUSH:
+            break
+        top_y = i
+        i += 1
 
-    while y < game_map.height and game_map.get(start_x, y) != GridCell.BUSH:
-        top_y = y
-        y += 1
-
-    return (bottom_y, top_y)#on retourne le point
+    return (bottom_y, top_y)
 
 
 class Enemy(arcade.TextureAnimationSprite):
@@ -117,10 +109,10 @@ class Bat(Enemy):
         self.world_height = world_height
 
     def valid_pos(self, x: float, y: float) -> bool:
-        min_x = max(TILE_SIZE, self.start_x - 100)
-        max_x = min(self.world_width - TILE_SIZE, self.start_x + 100)
-        min_y = max(TILE_SIZE, self.start_y - 100)
-        max_y = min(self.world_height - TILE_SIZE, self.start_y + 100)
+        min_x = max(TILE_SIZE, self.start_x - BAT_ZONE_WIDTH)             # bord gauche : au moins TILE_SIZE du mur (pour pas qu'elle soit en dehors de la map)
+        max_x = min(self.world_width - TILE_SIZE, self.start_x + BAT_ZONE_WIDTH)  # bord droit : au plus TILE_SIZE du mur
+        min_y = max(TILE_SIZE, self.start_y - BAT_ZONE_WIDTH)
+        max_y = min(self.world_height - TILE_SIZE, self.start_y + BAT_ZONE_WIDTH)
         return min_x < x < max_x and min_y < y < max_y
 
     def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
@@ -129,7 +121,7 @@ class Bat(Enemy):
         #on choisit un nombre aléatoirement entre 0 et 100
         # et on fais changer la bat de direction que si le nombre est inférieur à 2
         # ce qui fait que la bat change de direction à 2% des frames
-        if condition_move < 2:
+        if condition_move < BAT_FRAQUENCY_MODIF_DIRECTION:
             self.direction = random.uniform(self.direction - 30, self.direction + 30)
 
         #on fait avancé la bat que si la prochaine frame la bat est encore à l'intérieur de la zone
@@ -150,7 +142,7 @@ class Blob(Enemy):
     start_y: float
 
 
-    def __init__(self, start_x: int, start_y: int) -> None:
+    def __init__(self, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
         super().__init__(
             animation=ANIMATION_BLOB,
             scale=SCALE,
@@ -161,24 +153,32 @@ class Blob(Enemy):
         self.target_y = start_y
         self.start_x = start_x
         self.start_y = start_y
+        self.world_width = world_width
+        self.world_height = world_height
         self.path = []
         self.i = 0
-    def valid_pos(self, x: float, y: float) -> bool:
-        #fonction qui définit la zone de patrouille du blob
-        return (
-            self.start_x - 4*TILE_SIZE < x < self.start_x + 4*TILE_SIZE
-            and self.start_y - 4*TILE_SIZE < y < self.start_y + 4*TILE_SIZE
-        )
+    @staticmethod
+    # calcul le noeud du graphe le plus proche d'un point
+    def closest_node (G : nx.Graph, x: float, y : float) -> tuple[float, float] :
+        all_nodes = list(G.nodes)
+        return min(all_nodes,  key=lambda n: (n[0] - x)**2 + (n[1] - y)**2)
 
+    @staticmethod
+    def random_axis(start: float, limit: float, world_max: float) -> int:
+        zone_min = max(0, start - limit)          # bord gauche(x)/bas(y) de la zone, pour ne pas sortir de la map
+        zone_max = min(world_max, start + limit)  # bord droit(x)/haut(y) de la zone
+        return random.randrange(
+            int(zone_min),     # valeur minimale possible
+            int(zone_max + 1)  # valeur maximale possible (+1 car randrange est exclusif)
+        )
 
     def new_target (self, G : nx.Graph, target_player:  tuple[float, float] | None) -> None:
         path_found = False
-        limit = 4 * TILE_SIZE
+        limit = BLOB_ZONE_WIDTH
         all_nodes = list(G.nodes)
 
-
-        pos_blob = min(all_nodes, key=lambda n: (n[0] - self.center_x)**2 + (n[1] - self.center_y)**2)
         #donne le noeud le plus proche du blob afin de creer le chemin
+        pos_blob = self.closest_node (G, self.center_x, self.center_y)
         composante = nx.node_connected_component(G, pos_blob)
 
         while not path_found:
@@ -187,21 +187,11 @@ class Blob(Enemy):
                 self.target_x = target_player[0]
                 self.target_y = target_player[1]
             else:
-                raw_min_x = self.start_x - limit
-                raw_max_x = self.start_x + limit
-                raw_min_y = self.start_y - limit
-                raw_max_y = self.start_y + limit
-
-                zone_min_x = max(0, raw_min_x)
-                zone_max_x = min(MAX_WINDOW_WIDTH, raw_max_x)
-                zone_min_y = max(0, raw_min_y)
-                zone_max_y = min(MAX_WINDOW_HEIGHT, raw_max_y)
-                #les lignes précédentes calculs une zone dans laquelle on va choisir au hasard un point dans la map
-                self.target_x = random.randrange(int(min(zone_min_x, zone_max_x)), int(max(zone_min_x, zone_max_x) + 1), TILE_SIZE // 2)
-                self.target_y = random.randrange(int(min(zone_min_y, zone_max_y)), int(max(zone_min_y, zone_max_y) + 1), TILE_SIZE // 2)
+                self.target_x = self.random_axis(self.start_x, limit, self.world_width)   #coord x au hasard
+                self.target_y = self.random_axis(self.start_y, limit, self.world_height)  #coord y au hasard
 
             # donne le noeud le plus proche de la cible
-            pos_target = min(all_nodes, key=lambda n: (n[0] - self.target_x)**2 + (n[1] - self.target_y)**2)
+            pos_target = self.closest_node(G, self.target_x, self.target_y)
 
             if pos_target in composante:
                 try:
@@ -245,8 +235,8 @@ class Blob(Enemy):
                     self.i += 1
             return # On s'arrête là pour cette frame pour éviter de bouger deux fois
 
-        #MOUVEMENT (seulement si on n'est pas sur un noeud)
+        # avance (seulement si on n'est pas sur un noeud)
         cos_move = distance_x / distance_minimale
         sin_move = distance_y / distance_minimale
-        self.center_x += 1 * cos_move
-        self.center_y += 1 * sin_move
+        self.center_x += BLOB_MOUVEMENT_SPEED * cos_move
+        self.center_y += BLOB_MOUVEMENT_SPEED * sin_move

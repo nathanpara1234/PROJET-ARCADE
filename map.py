@@ -61,7 +61,7 @@ class Map:
     #position initiale du joueur
     player_start_x: int
     player_start_y: int
-    # Attributs prives: la Map est immutable et on passe par des proprietes.
+    # Attributs prives: la Map est immutable et on passe par des proprietes
     _grid: Grid
     _navmesh: nx.Graph[tuple[float, float]]
     _switches: tuple[SwitchData, ...]
@@ -160,7 +160,7 @@ def _single_dict_entry(dictionary: dict[str, object], name: str) -> tuple[str, o
     if len(dictionary) != 1:
         raise InvalidMapFileException(f"{name} doit contenir une seule cle.")
 
-    # Comme dans le cours, on cree un iterateur sur les cles du dictionnaire.
+    # Comme dans le cours, on cree un iterateur sur les cles du dictionnaire
     key_iterator: Iterator[str] = iter(dictionary)
     key = next(key_iterator)
     value = exist_value(dictionary, key, name)
@@ -396,7 +396,7 @@ def load_map_from_string(text: str) -> Map:
         raise InvalidMapFileException("width et height doivent etre strictement positifs.")
 
     # On lit d'abord les interrupteurs, puis les portails,
-    # car les portails peuvent parler des interrupteurs par leur id.
+    # car les portails peuvent parler des interrupteurs par leur id
     switches = _read_switches(config, width, height)
     gates = _read_gates(config, width, height, switches)
 
@@ -471,7 +471,7 @@ def load_map_from_string(text: str) -> Map:
 
     for switch in switches:
         # si le YAML dit qu'il y a un switch ici,
-        # on verifie qu'il y a bien un ^ dans le dessin.
+        # on verifie qu'il y a bien un ^ dans le dessin
         if grid[switch.y][switch.x] != GridCell.SWITCH:
             raise InvalidMapFileException("Un interrupteur doit etre place sur un ^.")
 
@@ -532,5 +532,3 @@ def find_spinners(game_map: Map) -> list[SpinnerData]:
                 result.append(SpinnerData(x=x, y=y, is_horizontal=False))
 
     return result
-
-

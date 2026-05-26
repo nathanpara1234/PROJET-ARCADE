@@ -172,7 +172,7 @@ class GameView(arcade.View):
         self.sword.update_sword(delta_time,self.all_enemies,self.crystals,self.player,self.crystal_sound)
         self.boomerang_touched_switches = update_switches_hit_by_boomerang(self.boomerang, self.boomerang_touched_switches, self.switches)
         self.sword_touched_switches = update_switches_hit_by_sword(self.sword, self.sword_touched_switches, self.switches)
-        # Apres les collisions avec les armes, les portails peuvent avoir change.
+        # Apres les collisions avec les armes, les portails peuvent avoir changé
         update_gate_states(self.switches, self.gates, self.walls)
         update_enemies(self.spinners, self.enemies, self.player, self.walls, self.map.navmesh)
         update_collectibles(self.player, self.crystals, self.crystal_sound, self.keys, self.keys_sound, self.chests, self.chests_sound, self.text)

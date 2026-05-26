@@ -13,8 +13,7 @@ from map import (
     SpinnerData
 )
 
-class SpinnerSprite(arcade.TextureAnimationSprite):
-    """Sprite ennemi qui se deplace en ligne droite entre deux bornes."""
+class SpinnerSprite(arcade.TextureAnimationSprite):# Spinner qui se deplace en ligne droite entre deux bornes
 
     is_horizontal: bool
     min_pos: float
@@ -35,8 +34,7 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         return (pos,
         speed)
 
-    def spinner_move(self) -> None:
-        # déplace le spinner puis vérifie s'il doit faire demi tour
+    def spinner_move(self) -> None: # déplace le spinner puis vérifie s'il doit faire demi tour en fonction des bornes
         self.center_x += self.change_x
         self.center_y += self.change_y
 
@@ -45,7 +43,7 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         else:
             (self.center_y, self.change_y) = self.bounce(self.center_y, self.change_y)
 
-# Calcule les bornes gauche/droite d'un spinner horizontal, jusqu'aux buissons.
+# Calcule les bornes gauche/droite d'un spinner horizontal
 def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
     left_x = start_x# on initialise la limite à gauche
     i = start_x - 1
@@ -53,7 +51,7 @@ def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int)
         if game_map.get(i, start_y) == GridCell.BUSH:# on test si il rencontre un buisson
             break
         left_x = i# si non, on maj la nouvelle limite qui est i
-        i -= 1# on decale et on resteste
+        i -= 1# on decale et on reteste
 
     right_x = start_x
     i = start_x + 1
@@ -66,7 +64,7 @@ def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int)
     return (left_x, right_x)
 
 
-# Calcule les bornes bas/haut d'un spinner vertical, jusqu'aux buissons.
+# Calcule les bornes bas/haut d'un spinner vertical ( meme principe que pour horizontal sauf que au lieu de se deplacer sur x il de deplace sur y)
 def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
     bottom_y = start_y
     i = start_y - 1
@@ -87,7 +85,7 @@ def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -
     return (bottom_y, top_y)
 
 
-class Enemy(arcade.TextureAnimationSprite):
+class Enemy(arcade.TextureAnimationSprite):# création d'une classe mère Enemy
     @abstractmethod
     def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
         ...
@@ -114,7 +112,7 @@ class Bat(Enemy):
         self.world_height = world_height
 
     def valid_pos(self, x: float, y: float) -> bool:
-        min_x = max(TILE_SIZE, self.start_x - BAT_ZONE_WIDTH)             # bord gauche : au moins TILE_SIZE du mur (pour pas qu'elle soit en dehors de la map)
+        min_x = max(TILE_SIZE, self.start_x - BAT_ZONE_WIDTH) # bord gauche : au moins TILE_SIZE du mur (pour pas qu'elle soit en dehors de la map)
         max_x = min(self.world_width - TILE_SIZE, self.start_x + BAT_ZONE_WIDTH)  # bord droit : au plus TILE_SIZE du mur
         min_y = max(TILE_SIZE, self.start_y - BAT_ZONE_WIDTH)
         max_y = min(self.world_height - TILE_SIZE, self.start_y + BAT_ZONE_WIDTH)

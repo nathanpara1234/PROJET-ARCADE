@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 
 
-# Je definis le type d'une condition qui est un YAML recursif.
+# Je definis le type d'une condition qui est un YAML recursif
 type GateCondition = dict[str, str | list[GateCondition]]
 
 

@@ -59,8 +59,7 @@ class SwitchSprite(arcade.Sprite):
 
 
 class GateSprite(arcade.Sprite):
-    # open_if est la condition qui dit quand ce portail est ouvert.
-    open_if: GateCondition
+    open_if: GateCondition # open_if est la condition qui dit quand ce portail est ouvert
     is_open: bool
 
     def __init__(self, gate: GateData) -> None:

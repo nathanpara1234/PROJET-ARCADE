@@ -43,7 +43,7 @@ class Player(arcade.TextureAnimationSprite):
         self.score = 0
         self.key = 0
     def player_move(self) -> None: # fonction qui exprime le deplacement du joueur
-        ## Deplacement Horizontale ( le long de x)
+        # Deplacement Horizontale ( le long de x)
         self.change_x = 0 # on initialise le changement le long de x à 0
         if self.right_pressed and not self.left_pressed:
             self.change_x = PLAYER_MOVEMENT_SPEED

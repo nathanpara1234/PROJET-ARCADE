@@ -5,13 +5,10 @@ from constants import TILE_SIZE, SCALE, SPINNER_SPEED
 from enemies import Bat, Blob, SpinnerSprite, compute_horizontal_spinner_limits, compute_vertical_spinner_limits
 from map import Map, GridCell
 from sprite import (
-    GateSprite,
-    SwitchSprite,
     make_tile_sprite,
     make_tile_animation_sprite,
     grid_to_pixels,
 )
-from interactions import update_gate_states
 from textures import (
     TEXTURE_GRASS,
     TEXTURE_BUSH,
@@ -38,37 +35,6 @@ class WorldSprites:
     holes: arcade.SpriteList[arcade.Sprite]
     enemies: arcade.SpriteList
     all_enemies: arcade.SpriteList
-
-
-@dataclass
-class InteractionSprites:
-    # Les interrupteurs et portails sont construits separement,
-    # car les portails doivent aussi etre ajoutes ou retirees de walls
-    switches: arcade.SpriteList[SwitchSprite]
-    gates: arcade.SpriteList[GateSprite]
-
-
-def switch_gate_interactions(
-    game_map: Map,
-    walls: arcade.SpriteList[arcade.Sprite],
-) -> InteractionSprites:
-    # On transforme les SwitchData/GateData immuables de Map en un  vrais sprites Arcade
-    switches = arcade.SpriteList()
-    gates = arcade.SpriteList()
-
-    for switch_data in game_map.switches:
-        switches.append(SwitchSprite(switch_data))
-
-    for gate_data in game_map.gates:
-        gate = GateSprite(gate_data)
-        gates.append(gate)
-        # Au depart, un portail est considere comme un mur
-        # et update_gate_states l'enlevera de walls si sa condition est deja vraie
-        walls.append(gate)
-
-    # Synchronise l'etat initial des portails avec les interrupteurs
-    update_gate_states(switches, gates, walls)
-    return InteractionSprites(switches=switches, gates=gates)
 
 
 def make_spinner(game_map: Map, x: int, y: int, is_horizontal: bool) -> SpinnerSprite:

@@ -1,21 +1,18 @@
-﻿import cProfile
+import cProfile
 import arcade
 from text import Text
-from world_builder import build_world, switch_gate_interactions
+from world_builder import build_world
 from systems import update_camera_position, update_enemies, update_collectibles
 from enemies import Enemy, SpinnerSprite, Blob
 from constants import TILE_SIZE, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, DRAW_NAVMESHES
 from player import Player
 from weapons import Boomerang, Sword
 from map import Map
-from sprite import grid_to_pixels, SwitchSprite, GateSprite, WeaponType
+from sprite import grid_to_pixels, WeaponType
 from interactions import (
     should_restart_after_collision,
     update_spikes,
     should_restart_after_spikes_collision,
-    update_gate_states,
-    update_switches_hit_by_sword,
-    update_switches_hit_by_boomerang,
 )
 
 class GameView(arcade.View):
@@ -28,8 +25,6 @@ class GameView(arcade.View):
     spinners: arcade.SpriteList[SpinnerSprite]
     player_list: arcade.SpriteList[arcade.TextureAnimationSprite]
     holes: arcade.SpriteList[arcade.Sprite]
-    switches: arcade.SpriteList[SwitchSprite]
-    gates: arcade.SpriteList[GateSprite]
     physics_engine: arcade.PhysicsEngineSimple
     camera: arcade.camera.Camera2D
     text : Text
@@ -43,8 +38,6 @@ class GameView(arcade.View):
     enemies: arcade.SpriteList[Enemy]
     all_enemies: arcade.SpriteList
     player: Player
-    sword_touched_switches: set[str]
-    boomerang_touched_switches: set[str]
     profiler: cProfile.Profile
     spikes_are_active: bool
     spikes_timer: float
@@ -64,8 +57,6 @@ class GameView(arcade.View):
         self.world_height = map.height * TILE_SIZE
         self.spikes_are_active = True
         self.spikes_timer = 0.0
-        self.sword_touched_switches = set()
-        self.boomerang_touched_switches = set()
         self.boomerang_list = arcade.SpriteList()
         self.boomerang = Boomerang()
         self.boomerang_list.append(self.boomerang)
@@ -82,10 +73,6 @@ class GameView(arcade.View):
         self.holes = world.holes
         self.enemies = world.enemies
         self.all_enemies = world.all_enemies
-
-        interactions = switch_gate_interactions(self.map, self.walls)
-        self.switches = interactions.switches
-        self.gates = interactions.gates
 
         # on initialise le joueur à sa position de départ
         self.player = Player(grid_to_pixels(map.player_start_x),grid_to_pixels(map.player_start_y),)
@@ -104,7 +91,7 @@ class GameView(arcade.View):
 
 
     def on_show_view(self) -> None:
-        # Ajuste la taille de la fenetre à  la taille du monde,
+        # Ajuste la taille de la fenetre à  la taille du monde,
         # sans dépasser les dimensions maximales autorisées
         self.window.width = min(MAX_WINDOW_WIDTH, self.world_width)
         self.window.height = min(MAX_WINDOW_HEIGHT, self.world_height)
@@ -116,9 +103,6 @@ class GameView(arcade.View):
             self.grounds.draw()
             self.walls.draw()
             self.holes.draw()
-            # Les portails et interrupteurs sont dessines comme les autres sprites.
-            self.gates.draw()
-            self.switches.draw()
             self.crystals.draw()
             self.keys.draw()
             self.chests.draw()
@@ -170,10 +154,6 @@ class GameView(arcade.View):
         self.boomerang.update_boomerang(self.player, self.walls, self.all_enemies)
         self.sword.update_animation()
         self.sword.update_sword(delta_time,self.all_enemies,self.crystals,self.player,self.crystal_sound)
-        self.boomerang_touched_switches = update_switches_hit_by_boomerang(self.boomerang, self.boomerang_touched_switches, self.switches)
-        self.sword_touched_switches = update_switches_hit_by_sword(self.sword, self.sword_touched_switches, self.switches)
-        # Apres les collisions avec les armes, les portails peuvent avoir changé
-        update_gate_states(self.switches, self.gates, self.walls)
         update_enemies(self.spinners, self.enemies, self.player, self.walls, self.map.navmesh)
         update_collectibles(self.player, self.crystals, self.crystal_sound, self.keys, self.keys_sound, self.chests, self.chests_sound, self.text)
 

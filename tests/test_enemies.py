@@ -1,4 +1,4 @@
-﻿# --- test_bats.py ---
+# --- test_bats.py ---
 import random
 from math import sqrt
 from textwrap import dedent
@@ -18,24 +18,22 @@ from enemies import (
 from constants import TILE_SIZE, BAT_MOUVEMENT_SPEED, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT
 
 # Map minimale avec une seule chauve-souris et un joueur.
-# Bat  à  la case (7, 5)
-# Player à  la case (7, 1) assez loin pour ne pas déclencher de collision immédiat
-MAP_TEXT ="""
-    width: 15
-    height: 10
-    ---
-    xxxxxxxxxxxxxxx
-    x             x
-    x             x
-    x             x
-    x      v      x
-    x             x
-    x             x
-    x             x
-    x      P      x
-    xxxxxxxxxxxxxxx
-    ---
-"""
+# Bat  à  la case (7, 5)
+# Player à  la case (7, 1) assez loin pour ne pas déclencher de collision immédiat
+MAP_TEXT = """width: 15
+height: 10
+---
+xxxxxxxxxxxxxxx
+x             x
+x             x
+x             x
+x      v      x
+x             x
+x             x
+x             x
+x      P      x
+xxxxxxxxxxxxxxx
+---"""
 
 BAT_START_X = 7 * TILE_SIZE + TILE_SIZE // 2
 BAT_START_Y = 5 * TILE_SIZE + TILE_SIZE // 2
@@ -167,22 +165,20 @@ def test_bat_killed_by_sword(window: arcade.Window) -> None:
 
 # Tests des blobs
 
-MAP_TEXT_BLOB = """
-    width: 15
-    height: 10
-    ---
-    xxxxxxxxxxxxxxx
-    x             x
-    x             x
-    x             x
-    x      b      x
-    x             x
-    x             x
-    x             x
-    x      P      x
-    xxxxxxxxxxxxxxx
-    ---
-"""
+MAP_TEXT_BLOB = """width: 15
+height: 10
+---
+xxxxxxxxxxxxxxx
+x             x
+x             x
+x             x
+x      b      x
+x             x
+x             x
+x             x
+x      P      x
+xxxxxxxxxxxxxxx
+---"""
 
 BLOB_START_X = 7 * TILE_SIZE + TILE_SIZE // 2
 BLOB_START_Y = 5 * TILE_SIZE + TILE_SIZE // 2
@@ -289,73 +285,35 @@ def test_blob_chases_player_when_visible(window: arcade.Window) -> None:
 def test_blob_does_not_see_player_behind_bush_wall(window: arcade.Window) -> None:
     """Un buisson entre le blob et le joueur bloque sa ligne de vue"""
     game_map = load_map_from_string(
-        """
-        width: 9
-        height: 5
-        ---
-        xxxxxxxxx
-        x       x
-        x b x P x
-        x       x
-        xxxxxxxxx
-        ---
-        """
+"""width: 9
+height: 5
+---
+xxxxxxxxx
+x       x
+x b x P x
+x       x
+xxxxxxxxx
+---"""
     )
     view = GameView(game_map)
     window.show_view(view)
 
     blob = view.enemies[0]
 
-    assert not arcade.has_line_of_sight(blob.position, view.player.position, view.walls)
-
-
-def test_blob_sees_closed_gate_as_wall(window: arcade.Window) -> None:
-    """Un portail ferme bloque la ligne de vue du blob comme un mur"""
-    game_map = load_map_from_string(
-        """
-        width: 9
-        height: 5
-        switches:
-          - id: first
-            x: 1
-            y: 1
-        gates:
-          - x: 4
-            y: 2
-            open_if:
-              switch_is_on: first
-        ---
-        xxxxxxxxx
-        x       x
-        x b | P x
-        x^      x
-        xxxxxxxxx
-        ---
-        """
-    )
-    view = GameView(game_map)
-    window.show_view(view)
-    blob = view.enemies[0]
-    gate = view.gates[0]
-
-    assert not gate.is_open
-    assert gate in view.walls
     assert not arcade.has_line_of_sight(blob.position, view.player.position, view.walls)
 
 
 # Test Spinner
 
-MAP_TEXT_SPINNER = """
-    width: 7
-    height: 5
-    ---
-    xxxxxxx
-    x     x
-    x  s  x
-    x P   x
-    xxxxxxx
-    ---
-"""
+MAP_TEXT_SPINNER = """width: 7
+height: 5
+---
+xxxxxxx
+x     x
+x  s  x
+x P   x
+xxxxxxx
+---"""
 
 
 def test_horizontal_spinner_limits_stop_before_bushes() -> None:
@@ -369,19 +327,17 @@ def test_horizontal_spinner_limits_stop_before_bushes() -> None:
 
 def test_vertical_spinner_limits_stop_before_bushes() -> None:
     """Verifie les limites bas/haut d'un spinner vertical"""
-    text = """
-        width: 5
-        height: 7
-        ---
-        xxxxx
-        x   x
-        x S x
-        x   x
-        x P x
-        x   x
-        xxxxx
-        ---
-    """
+    text = """width: 5
+height: 7
+---
+xxxxx
+x   x
+x S x
+x   x
+x P x
+x   x
+xxxxx
+---"""
     game_map = load_map_from_string(text)
     bottom_y, top_y = compute_vertical_spinner_limits(game_map, 2, 4)
 
@@ -442,5 +398,3 @@ def test_spinner_killed_by_sword(window: arcade.Window) -> None:
     view.do_on_update(1 / 60)
 
     assert len(view.spinners) == initial_count - 1
-
-

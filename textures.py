@@ -1,8 +1,8 @@
 from typing import Final
 import arcade
 
-ORIG_TILE_SIZE = (16, 16)# cest un tuple
-SWORD_TILE_SIZE = (48,48)# tuple
+ORIG_TILE_SIZE: Final = (16, 16)# cest un tuple
+SWORD_TILE_SIZE: Final = (48,48)# tuple
 
 def _load_grid(#cette fonction retourne une liste de textures
     file: str,
@@ -31,9 +31,9 @@ def _load_grid(#cette fonction retourne une liste de textures
     spritesheet = arcade.load_spritesheet(file)
     return spritesheet.get_texture_grid(tile_size, columns, columns * rows)
 
-_overworld_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)#ici on charge la grille principale du monde
+_overworld_grid: Final = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)#ici on charge la grille principale du monde
 # Les portails viennent du tileset du donjon, donc on charge aussi cette grille.
-_dungeon_grid = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png", 13, 12)
+_dungeon_grid: Final = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png", 13, 12)
 
 TEXTURE_GRASS: Final[arcade.Texture] = _overworld_grid[18*1 + 6]
 TEXTURE_BUSH: Final[arcade.Texture] = _overworld_grid[18*3 + 5]

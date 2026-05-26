@@ -1,4 +1,4 @@
-# Journal
+﻿# Journal
 
 ## Progression
 
@@ -59,3 +59,5 @@ Nathan a ajoute les blobs et leur deplacement avec le navmesh. Nicolas a ajoute 
 ### Semaine 7 - Performances et extensions
 
 Nathan a travaille sur l'invincibilite et l'extension cles/coffres. Nicolas a ajoute les pics animes avec la case `!`, leur alternance entre etat actif et inactif, ainsi que la collision qui relance la partie quand les pics sont dangereux. Le groupe a aussi commence a regarder les performances avec le benchmark.
+
+

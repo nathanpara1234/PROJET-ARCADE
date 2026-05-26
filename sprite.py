@@ -1,6 +1,5 @@
 import arcade
-from typing import Final
-from enum import Enum
+from enum import Enum, auto
 from constants import TILE_SIZE, SCALE
 from textures import (
     TEXTURE_SWITCH_ON,
@@ -39,13 +38,13 @@ def make_tile_animation_sprite(
 
 
 class SwitchSprite(arcade.Sprite):
-    # Sprite visible de l'interrupteur.
-    # Il garde aussi son id pour que les portails puissent le retrouver.
+    # Sprite visible de l'interrupteur
+    # Il garde aussi son id pour que les portails puissent le retrouver
     id: str
     is_on: bool
 
     def __init__(self, switch: SwitchData) -> None:
-        # On choisit la texture selon l'etat de depart lu dans la map.
+        # On choisit la texture selon l'etat de depart lu dans la map
         texture = TEXTURE_SWITCH_ON if switch.is_on else TEXTURE_SWITCH_OFF
         super().__init__(texture,scale=0.25,center_x=grid_to_pixels(switch.x),center_y=grid_to_pixels(switch.y),)
         self.id = switch.id
@@ -78,5 +77,5 @@ class GateSprite(arcade.Sprite):
 
 
 class WeaponType(Enum):
-    BOOMERANG = 1
-    SWORD = 2
+    BOOMERANG = auto()
+    SWORD = auto()

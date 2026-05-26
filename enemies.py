@@ -14,13 +14,18 @@ from map import (
 )
 
 class SpinnerSprite(arcade.TextureAnimationSprite):
+    """Sprite ennemi qui se deplace en ligne droite entre deux bornes."""
+
     is_horizontal: bool
-    min_pos: int
-    max_pos: int
+    min_pos: float
+    max_pos: float
+    change_x: float
+    change_y: float
 
 
     def bounce(self, pos: float, speed: float) -> tuple[float, float]:
         # demi tour si le spinner atteint une limite, sinon il continu
+        # pos cest le x ou le y
         if pos >= self.max_pos:
             return (self.max_pos,
                     -SPINNER_SPEED)
@@ -28,7 +33,7 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
             return (self.min_pos,
                     SPINNER_SPEED)
         return (pos,
-                speed)
+        speed)
 
     def spinner_move(self) -> None:
         # déplace le spinner puis vérifie s'il doit faire demi tour
@@ -40,14 +45,15 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         else:
             (self.center_y, self.change_y) = self.bounce(self.center_y, self.change_y)
 
+# Calcule les bornes gauche/droite d'un spinner horizontal, jusqu'aux buissons.
 def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-    left_x = start_x
+    left_x = start_x# on initialise la limite à gauche
     i = start_x - 1
-    while i >= 0:
-        if game_map.get(i, start_y) == GridCell.BUSH:
+    while i >= 0: # on verifie si la case est dans la map
+        if game_map.get(i, start_y) == GridCell.BUSH:# on test si il rencontre un buisson
             break
-        left_x = i
-        i -= 1
+        left_x = i# si non, on maj la nouvelle limite qui est i
+        i -= 1# on decale et on resteste
 
     right_x = start_x
     i = start_x + 1
@@ -60,6 +66,7 @@ def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int)
     return (left_x, right_x)
 
 
+# Calcule les bornes bas/haut d'un spinner vertical, jusqu'aux buissons.
 def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
     bottom_y = start_y
     i = start_y - 1
@@ -90,8 +97,6 @@ class Bat(Enemy):
     direction: float
     start_x: int
     start_y: int
-    path: list
-    i : int
     world_width: int
     world_height: int
 
@@ -115,12 +120,13 @@ class Bat(Enemy):
         max_y = min(self.world_height - TILE_SIZE, self.start_y + BAT_ZONE_WIDTH)
         return min_x < x < max_x and min_y < y < max_y
 
+
     def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
 
         condition_move = random.uniform(0, 100)
         #on choisit un nombre aléatoirement entre 0 et 100
         # et on fais changer la bat de direction que si le nombre est inférieur à 2
-        # ce qui fait que la bat change de direction à 2% des frames
+        # ce qui fait que la bat change de direction à BAT_FRAQUENCY_MODIF_DIRECTION% des frames
         if condition_move < BAT_FRAQUENCY_MODIF_DIRECTION:
             self.direction = random.uniform(self.direction - 30, self.direction + 30)
 
@@ -133,14 +139,15 @@ class Bat(Enemy):
             self.center_y = next_y
         # si la bat est hors de la zone à la frame suivante, elle fait demi tour
         else:
-            self.direction = (self.direction + 180) % 360
+            self.direction = (self.direction + random.uniform(135, 225)) % 360# definit langle de deviation du bat
 
 class Blob(Enemy):
     target_x: float
     target_y: float
     start_x: float
     start_y: float
-
+    path : list
+    i : int
 
     def __init__(self, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
         super().__init__(

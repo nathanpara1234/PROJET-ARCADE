@@ -8,7 +8,7 @@ from player import Player
 from text import Text
 
 
-def _clamp_camera(pos: float, window_size: float, world_size: float) -> float:
+def _clamp_camera(pos: float, window_size: float, world_size: float) -> float:# soit ça retourne la position du joueur ou une limite de map
     min_camera = window_size / 2
     max_camera = world_size - window_size / 2
     if pos < min_camera:
@@ -18,7 +18,7 @@ def _clamp_camera(pos: float, window_size: float, world_size: float) -> float:
     return pos
 
 
-def update_camera_position(
+def update_camera_position(# soit la caméra suit le joueur soit elle est bloqué à la limite
     camera: arcade.camera.Camera2D,
     player: Player,
     window: arcade.Window,
@@ -31,7 +31,7 @@ def update_camera_position(
     )
 
 
-def update_enemies(
+def update_enemies(# pour savoir si le player est dans la zone du blob
     spinners: arcade.SpriteList,
     enemies: arcade.SpriteList,
     player: Player,
@@ -49,7 +49,7 @@ def update_enemies(
             enemy.move(navmesh, None)
 
 
-def update_collectibles(
+def update_collectibles(# fonction de collision avec item recuperable
     player: Player,
     crystals: arcade.SpriteList,
     crystal_sound: arcade.Sound,
@@ -57,23 +57,24 @@ def update_collectibles(
     keys_sound: arcade.Sound,
     chests: arcade.SpriteList,
     chests_sound: arcade.Sound,
-    hud: Text,
+    text: Text,
 ) -> None:
     collision_crystals = arcade.check_for_collision_with_list(player, crystals)
     for crystal in collision_crystals:
+
         crystal.remove_from_sprite_lists()
         arcade.play_sound(crystal_sound)
         player.score += 1
-        hud.update_score(player, len(crystals))
-        if player.score >= len(crystals):
-            hud.show_end()
+        text.update_score(player)
+        if player.score >= text.total_crystals:
+            text.show_end()
 
     collision_keys = arcade.check_for_collision_with_list(player, keys)
     for key in collision_keys:
         key.remove_from_sprite_lists()
         arcade.play_sound(keys_sound)
         player.key += 1
-        hud.update_keys(player)
+        text.update_keys(player)
 
     collision_chests = arcade.check_for_collision_with_list(player, chests)
     for chest in collision_chests:
@@ -81,5 +82,5 @@ def update_collectibles(
             chest.texture = TEXTURE_EMPTY_CHEST
             arcade.play_sound(chests_sound)
             player.key -= 1
-            hud.update_keys(player)
+            text.update_keys(player)
             player.player_become_indestructible()

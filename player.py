@@ -1,14 +1,14 @@
-from enum import Enum
+from enum import Enum, auto
 import arcade
 
 from constants import *
 from textures import *
 
 class Direction(Enum):
-    NORTH = 1
-    SOUTH = 2
-    EAST = 3
-    WEST = 4
+    NORTH = auto()
+    SOUTH = auto()
+    EAST = auto()
+    WEST = auto()
 
 
 class Player(arcade.TextureAnimationSprite):

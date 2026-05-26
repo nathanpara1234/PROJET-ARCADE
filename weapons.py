@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 from math import sqrt
 import arcade
 from constants import SCALE, BOOMERANG_SPEED, BOOMERANG_MAX_DISTANCE, TILE_SIZE
@@ -33,9 +33,9 @@ class Weapon(arcade.TextureAnimationSprite):
             enemy.remove_from_sprite_lists()
 
 class BoomerangState(Enum):# un enum pour les 3 etats possible d'un boomerang
-    INACTIVE = 1
-    LAUNCHING = 2
-    RETURNING = 3
+    INACTIVE = auto()
+    LAUNCHING = auto()
+    RETURNING = auto()
 class Boomerang(Weapon):
     state: BoomerangState
     speed: float

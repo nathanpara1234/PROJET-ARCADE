@@ -4,24 +4,35 @@ switches:
   - id: first
     x: 5
     y: 1
+  - id: second
+    x: 3
+    y: 6
+    state: on
 gates:
   - x: 22
     y: 1
     open_if:
       switch_is_on: first
+  - x: 28
+    y: 7
+    open_if:
+      and:
+        - switch_is_on: second
+        - not:
+          - switch_is_on: first
 ---
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 x  *               S     x             x
-x      o o       v       x    *   *    x
-x                      * x     o       x
+x      O O       v       x    *   *    x
+x                      * x     O       x
 x         s        xxxxxxx            sx
-x     xxx *   xx    o                  x
-x       o           C         xxx      x
-x            xxxxxxxxxx        x       x
-x    k  ! *                    x   *   x
+x     xxx *   xx    O                  x
+x       O           C         xxx      x
+x            xxxxxxxxxx     |  x       x
+x  ^ k  ! *                    x   *   x
 x      S              S     *  x       x
-x  *      o      *                     x
-x       v o       b              o     x
+x  *      O      *                     x
+x       v O       b                    x
 x     xx     s        xs               x
 x  P ^ v  *           |       *        x
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

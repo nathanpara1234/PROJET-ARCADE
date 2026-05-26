@@ -1,4 +1,4 @@
-# 1) Question de design : Player
+﻿# 1) Question de design : Player
 
 ## Comment définissez-vous le type Direction, et pourquoi ?
 
@@ -11,12 +11,12 @@ Ce choix permet d’éviter d’utiliser des chaînes de caractères comme `"nor
 
 Dans mon implémentation, la méthode `player_move` de la classe `Player` ne reçoit pas directement le `symbol: int` de Arcade. Les touches sont traitées dans `GameView`, dans `on_key_press` et `on_key_release`, puis elles mettent à jour des booléens du joueur comme `up_pressed`, `down_pressed`, `left_pressed` et `right_pressed`.
 
-Ensuite, `player_move` utilise seulement ces booléens pour calculer `change_x`, `change_y` et mettre à jour la direction du joueur. Ce choix sépare mieux les responsabilités : `GameView` s’occupe des événements clavier Arcade, tandis que `Player` s’occupe seulement de son mouvement. La classe Player dépend donc moins des détails du clavier et reste plus simple à tester et à comprendre.
+Ensuite, `player_move` utilise seulement ces booléens pour calculer `change_x`, `change_y` et mettre à jour la direction du joueur. Ce choix sépare mieux les responsabilités : `GameView` s’occupe des événements clavier Arcade, tandis que `Player` s’occupe seulement de son mouvement.
 
 # 2) Question de design : Trou
 ## Comment gérez-vous les trous dans la map et la collision avec le joueur ?
 
-Les trous sont représentés dans `map.py` par la valeur `GridCell.HOLE`. Lors du chargement de la map, les caractères `o` et `O` sont transformés en cases `HOLE`. Dans `GameView`, chaque case trou devient un sprite ajouté dans la liste `self.holes`.
+Les trous sont représentés dans `map.py` par la valeur `GridCell.HOLE`. Lors du chargement de la map, le caractère `O` qui est transformé en case `HOLE`. Dans `GameView`, chaque case trou devient un sprite ajouté dans la liste `self.holes`.
 
 À chaque frame, la méthode `restart_if_collision` vérifie la distance entre le joueur et chaque trou. Si le joueur est assez proche d’un trou, une nouvelle `GameView` est créée avec la même map, ce qui redémarre la partie. Les trous sont donc gérés séparément des murs : ils ne bloquent pas forcément le joueur comme un buisson, mais ils déclenchent une mort quand le joueur marche dessus.
 
@@ -48,18 +48,15 @@ Pour ajouter une troisième arme, il faudrait créer une nouvelle classe qui hé
 ## Si un monstre attaque le joueur “par derrière” pendant que l’épée est active, que devrait-il se passer ? Est-ce que votre implémentation a le comportement attendu ?
 
 Dans mon implémentation, l’épée et le joueur restent deux sprites séparés. L’épée peut tuer les monstres qu’elle touche, mais elle ne rend pas le joueur invincible. Donc si un monstre touche le joueur pendant que l’épée est active, même par derrière, la collision joueur-monstre est toujours détectée dans `restart_if_collision`.
-
-Le comportement actuel est donc que le joueur meurt quand même si un monstre le touche pendant l’attaque, sauf s’il est dans l’état `indestructible` obtenu avec un coffre. Ce comportement est logique : l’épée attaque seulement dans une zone autour du joueur, mais elle ne protège pas automatiquement tout le corps du joueur.
+Ce comportement est logique : l’épée attaque seulement dans une zone autour du joueur, mais elle ne protège pas automatiquement tout le corps du joueur.
 
 # 5) Question de design : Chauve-Souris
 
 ## Comment gérez-vous le fait que vous avez maintenant deux types de monstres, avec des comportements différents ? Pensez-vous que vous pourriez ajouter un troisième monstre sans tout refaire ?
 
----
-
 `Bat` et `Blob` héritent d'une classe abstraite `Enemy` qui définit une méthode abstraite `move`. Chaque sous-classe implémente `move` à sa façon. Dans `GameView`, une seule liste `self.enemies` suffit et `on_update` appelle `enemy.move(...)` sans savoir si c'est un `Bat` ou un `Blob`.
 
-Pour ajouter un 3e monstre, il suffit de créer une classe `Ghost(Enemy)` avec sa propre méthode `move` — sans toucher à `GameView`.
+Pour ajouter un 3e monstre, il suffit de créer une classe `Ghost(Enemy)` avec sa propre méthode `move` sans toucher à `GameView`.
 
 # 6) Questions de design : Blobs
 
@@ -108,40 +105,70 @@ Au total, la complexité par frame est donc `Θ(n + m)`.
 
 # 8) Analyse des performances
 
-## Chargement de la map — facteur : NAVMESH_DENSITY (n nœuds par côté de cellule)
+## Chargement de la map - facteur choisi : NAVMESH_DENSITY
 
-La partie intéressante du chargement de la map est la construction du navmesh.(le reste est trivial)
+Pour le chargement de la map, le facteur que nous faisons varier est `NAVMESH_DENSITY`, note `n`. Ce facteur indique combien de noeuds de navmesh sont crees sur un cote d'une cellule. Une cellule marchable cree donc au plus `n^2` noeuds.
 
-Pour une map de m×m cases marchables, on crée n² nœuds par case, soit m²×n² nœuds au total. Pour chaque nœud, on vérifie les 9 cases voisines pour détecter les buissons proches : chaque vérification est Θ(1) grâce au `set` de cases buissons (`(cell_x + dx, cell_y + dy) in cases_buissons`). Sans le `set`, il faudrait parcourir toute la liste des buissons à chaque fois. Ensuite on insère le noeud en  Θ(1) dans le dictionnaire `node_positions`.
+Si la map a une taille `m x m`, il y a `m^2` cellules a parcourir. Pour chaque cellule marchable, la construction du navmesh essaie de creer `n^2` noeuds. Pour chaque noeud, le code verifie les 9 cellules voisines pour savoir s'il est trop proche d'un buisson. Cette verification reste en `Theta(1)`, car les positions des buissons sont stockees dans un `set`, donc le test `(x, y) in cases_buissons` ne parcourt pas toute la liste des buissons.
 
-La création des arêtes parcourt aussi les m²×n² nœuds. Pour chaque nœud, on cherche ses 8 voisins par des calculs simples et un une recherche Θ(1) dans le dictionnaire.
+Ensuite, le code relie les noeuds voisins. Chaque noeud teste au plus 8 voisins possibles : 4 voisins droits et 4 voisins diagonaux. Ces tests utilisent le dictionnaire `node_positions`, donc la recherche d'un voisin est aussi en `Theta(1)`. Le nombre total d'aretes reste donc proportionnel au nombre de noeuds.
 
-La complexité totale du chargement est donc Θ(m²×n²). Si on double la densité n, le temps de chargement est multiplié par 4.
+La partie dominante du chargement est donc la construction du navmesh. Avec `m` fixe, si on augmente `n`, le nombre de noeuds augmente comme `n^2`. La complexite grossiere du chargement est donc `Theta(m^2 * n^2)`. Dans le benchmark, `m` est fixe et on fait varier `n`, donc on s'attend a une croissance proche de `Theta(n^2)`.
 
-### Benchmarks — chargement
+## Benchmarks - chargement
 
-| Taille map | n (NAVMESH_DENSITY) | Nœuds | Temps (ms) |
-|---|---|---|---|
-| 5×5 cases marchables | 3 | — | — |
-| 10×10 cases marchables | 3 | — | — |
-| 14×14 cases marchables | 3 | — | — |
+Le script `benchmark.py` construit une map ouverte de taille fixe `20 x 20`, puis mesure `load_map_from_string` pour plusieurs valeurs de `NAVMESH_DENSITY`. Les mesures brutes sont sauvegardees dans `benchmarks.csv`, et le graphe dans `benchmarks.png`.
 
----
+| NAVMESH_DENSITY n | Nombre de noeuds | Temps moyen (ms) | Ecart-type (ms) |
+|---:|---:|---:|---:|
+| 1                 | 324              | 4.007            | 0.754           |
+| 2                 | 1156 | 12.534 | 0.837 |
+| 3                 | 2704 | 30.162 | 2.156 |
+| 4                 | 4624 | 51.272 | 2.750 |
+| 5                 | 7396             | 93.032           | 10.483 |
+| 7 | 14400 | 172.229 | 13.946 |
+| 10 | 29172 | 337.616 | 6.375 |
+| 14 | 57188 | 667.680 | 13.174 |
 
-## on_update — facteur : nombre d'ennemis (k)
+Les resultats suivent bien l'analyse theorique. Quand `n` augmente, le nombre de noeuds augmente fortement, et le temps de chargement augmente de maniere proche de quadratique. Les ecarts ne sont pas parfaitement reguliers, ce qui est normal pour des mesures reelles : il y a le cout de Python, NetworkX, l'allocation memoire, et le systeme d'exploitation.
 
-À chaque frame, `on_update` fait plusieurs choses. La physique, les animations et le déplacement du joueur sont Θ(1). Les collisions joueur/cristaux utilisent un spatial hash : `check_for_collision_with_list` est Θ(1) grâce au hash, indépendamment du nombre de cristaux.
+## on_update - facteur choisi : nombre d'ennemis
 
-La partie intéressante est la boucle sur les ennemis. Pour chaque ennemi (k ennemis au total), on calcule d'abord la distance joueur/ennemi en Θ(1). Si l'ennemi est assez proche, on appelle `arcade.has_line_of_sight` qui vérifie si il y a des buissons entre le blob et le joueur. Les murs sont dans une `SpriteList` avec spatial hash. La fonction traverse au maximum la diagonale de la map(pire cas), soit Θ(m) cases sur une map de m×m, le spatial hash évite de tester tous les murs, mais pas de parcourir les cases du rayon.
+Pour `on_update`, le facteur choisi est le nombre d'ennemis, note `k`. C'est un bon facteur car `GameView.do_on_update` appelle `update_enemies`, qui parcourt les spinners puis les ennemis. Dans notre benchmark, on fait varier le nombre de chauves-souris, car leur deplacement est simple et permet d'isoler le cout de la boucle sur les ennemis.
 
-Le déplacement d'une chauve-souris est Θ(1). Le déplacement d'un blob qui suit son chemin est aussi Θ(1). En revanche, quand un blob recalcule un nouveau chemin avec Dijkstra, c'est Θ(m²n² × log(m²n²)) = Θ(m²n²×(log(m)+log(n))) mais ce cas est rare (seulement à l'arrivée à destination).
+Pour chaque ennemi, `update_enemies` calcule la distance avec le joueur. Ce calcul est en `Theta(1)`. Ensuite, si l'ennemi est assez proche, le code peut appeler `arcade.has_line_of_sight`. Cette fonction depend des murs et de la distance a verifier, mais le spatial hash de `SpriteList` evite de tester tous les murs un par un. Le deplacement d'une chauve-souris est aussi en `Theta(1)` : elle calcule une nouvelle direction eventuelle, puis une nouvelle position.
 
-La complexité de `on_update` est donc Θ(k×m)= Θ(m) dans la majorité des frames. sinon elle est au pire  Θ(k×(m²n²×(log(m)+log(n)))) =  Θ(m²n²×(log(m)+log(n))).
+Dans le cas des blobs, certaines frames peuvent etre plus couteuses, car un blob peut recalculer un chemin avec Dijkstra sur le navmesh. Si `V` est le nombre de noeuds du navmesh, Dijkstra coute environ `Theta((V + E) log V)`. Comme chaque noeud du navmesh a au plus 8 voisins, `E` reste proportionnel a `V`, donc le cout est environ `Theta(V log V)`. Mais ce recalcul n'arrive pas a chaque frame, seulement quand le blob choisit une nouvelle cible ou poursuit le joueur.
 
-### Benchmarks — on_update
+Dans le benchmark choisi, avec des chauves-souris, le cout attendu de `on_update` est donc proche de `Theta(k)`. Les autres operations de la frame restent presentes, mais elles ne dependent pas directement du nombre d'ennemis.
 
-| Nombre d'ennemis (k) | Temps moyen par frame (ms) |
-|---|---|
-| 1 ennemi | — |
-| 5 ennemis | — |
-| 10 ennemis | — |
+## Benchmarks - on_update
+
+Le script `benchmark.py` construit des maps contenant un nombre variable de chauves-souris, cree une `GameView`, puis appelle directement `view.on_update(1 / 60)` sans utiliser `window.test`, comme demande dans la consigne.
+
+| Nombre d'ennemis k | Temps moyen par frame (ms) | Ecart-type (ms) |
+|---:|---:|---:|
+| 1 | 2.344 | 1.815 |
+| 3 | 5.256 | 1.997 |
+| 10 | 0.566 | 0.243 |
+| 30 | 0.836 | 0.224 |
+| 100 | 2.289 | 0.756 |
+| 300 | 5.682 | 1.558 |
+
+Les mesures ne sont pas parfaitement monotones pour les petites valeurs de `k`. C'est probablement du au bruit de mesure, aux caches, a Arcade, et aux couts fixes de `on_update` qui dominent quand il y a tres peu d'ennemis. En revanche, pour les valeurs plus grandes, on observe bien que le temps augmente avec le nombre d'ennemis : 30 ennemis coutent moins que 100, et 100 coutent moins que 300. Cela correspond a l'analyse grossiere en `Theta(k)`.
+
+# 9) Extensions personnelles
+
+## Extension 1 : pics intermittents
+
+Une extension ajoutee au jeu est le systeme de pics (`GridCell.SPIKES`, caractere `!` dans la map). Les pics changent regulierement d'etat avec un timer : lorsqu'ils sont actifs, ils sont opaques et tuent le joueur en cas de collision ; lorsqu'ils sont inactifs, ils deviennent semi-transparents et le joueur peut passer dessus sans mourir.
+
+Cette extension est geree dans `interactions.py` avec `update_spikes` et `should_restart_after_spikes_collision`. Elle est testee dans `tests/test_gameplay.py` avec des tests qui verifient le changement d'etat, le changement d'opacite, la mort sur pics actifs et la survie sur pics inactifs.
+
+## Extension 2 : cles, coffres et invincibilite temporaire
+
+Une autre extension est le systeme de cles et de coffres. Les cles sont placees sur la map avec le caractere `k`, les coffres avec `C`. Quand le joueur ramasse une cle, son compteur de cles augmente. Quand il touche un coffre avec au moins une cle, le coffre s'ouvre, consomme une cle, et le joueur devient temporairement indestructible.
+
+Cette extension ajoute un objectif supplementaire au joueur et modifie les interactions avec les ennemis : pendant l'indestructibilite, toucher un ennemi ne redemarre pas la partie, mais retire l'ennemi. Le systeme est integre dans `systems.py` et dans `Player`, et l'affichage du nombre de cles est gere par `text.py`.
+
+

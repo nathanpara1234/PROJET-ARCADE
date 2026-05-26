@@ -1,166 +1,271 @@
-"""
-Benchmarks de performance :
-  - Chargement de la map en fonction de NAVMESH_DENSITY (n)
-  - on_update en fonction du nombre d'ennemis (k)
-"""
-import sys
-import timeit
-import statistics
-import time
+"""Benchmarks pour l'analyse de performance du projet.
 
-sys.path.insert(0, ".")
+Deux facteurs sont mesures:
+- le chargement d'une map en fonction de NAVMESH_DENSITY;
+- le cout de on_update en fonction du nombre d'ennemis.
+"""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+import csv
+import statistics
+import timeit
+
+import arcade
+import matplotlib.pyplot as plt
 
 import constants
 import map as map_module
-import matplotlib.pyplot as plt
-import arcade
 from gameview import GameView
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-MAP_10x10 = """\
-width: 12
-height: 12
----
-xxxxxxxxxxxx
-x          x
-x          x
-x          x
-x          x
-x    P     x
-x          x
-x          x
-x          x
-x          x
-x          x
-xxxxxxxxxxxx
----
-"""
+DEFAULT_NAVMESH_DENSITY = 3
+BENCHMARK_CSV = "benchmarks.csv"
+BENCHMARK_IMAGE = "benchmarks.png"
 
 
-def make_map_k_bats(k: int) -> str:
-    """Génère une map carrée assez grande pour placer k chauves-souris."""
-    interior = max(10, int((k * 9) ** 0.5) + 2)
-    size = interior + 2
-    cx, cy = size // 2, size // 2
+@dataclass(frozen=True)
+class BenchmarkPoint:
+    """Une ligne de resultat de benchmark"""
 
-    lines = ["x" * size]
-    bats_placed = 0
-    for row in range(1, size - 1):
-        line = ["x"]
-        for col in range(1, size - 1):
-            if row == cy and col == cx:
-                line.append("P")
-            elif bats_placed < k and (col + row) % 3 == 0:
-                line.append("v")
-                bats_placed += 1
+    # label est le facteur qu'on fait varier:
+    # NAVMESH_DENSITY pour le chargement, nombre d'ennemis pour on_update.
+    label: int
+
+    # extra sert a garder une information utile en plus.
+    # Pour le chargement, on y met le nombre de noeuds du navmesh.
+    extra: int
+
+    # Temps moyen et ecart-type en millisecondes.
+    mean_ms: float
+    std_ms: float
+
+
+def make_open_map(size: int) -> str:
+    """Construit une map carree vide de taille size x size."""
+    lines: list[str] = []
+    player_y = size // 2
+    player_x = size // 2
+
+    # On genere une bordure de buissons pour garder le joueur dans la map.
+    # L'interieur reste vide pour que le navmesh puisse se developper librement.
+    for y in range(size):
+        if y == 0 or y == size - 1:
+            lines.append("x" * size)
+            continue
+
+        row: list[str] = []
+        for x in range(size):
+            if x == 0 or x == size - 1:
+                row.append("x")
+            elif x == player_x and y == player_y:
+                row.append("P")
             else:
-                line.append(" ")
-        line.append("x")
-        lines.append("".join(line))
-    lines.append("x" * size)
+                row.append(" ")
+        lines.append("".join(row))
 
     grid = "\n".join(lines)
     return f"width: {size}\nheight: {size}\n---\n{grid}\n---\n"
 
 
-def measure(fn, number: int = 100) -> tuple[float, float]:
-    """Retourne (moyenne en ms, écart-type en ms) sur `number` répétitions."""
-    times = []
-    for _ in range(number):
-        t = timeit.timeit(fn, number=1) * 1000  # en ms
-        times.append(t)
-    return statistics.mean(times), statistics.stdev(times)
+def make_map_with_bats(enemy_count: int) -> str:
+    """Construit une map avec enemy_count chauves-souris."""
+    # On agrandit la map quand le nombre d'ennemis augmente,
+    # pour avoir assez de place pour les placer.
+    interior = max(8, int(enemy_count**0.5) * 4 + 4)
+    size = interior + 2
+    player_y = size // 2
+    player_x = size // 2
+    placed = 0
+    lines: list[str] = []
+
+    for y in range(size):
+        if y == 0 or y == size - 1:
+            lines.append("x" * size)
+            continue
+
+        row: list[str] = []
+        for x in range(size):
+            if x == 0 or x == size - 1:
+                row.append("x")
+            elif x == player_x and y == player_y:
+                row.append("P")
+            elif placed < enemy_count and (x + 2 * y) % 3 == 0:
+                # Les chauves-souris sont choisies pour le benchmark on_update
+                # car leur mouvement est en temps constant.
+                row.append("v")
+                placed += 1
+            else:
+                row.append(" ")
+        lines.append("".join(row))
+
+    grid = "\n".join(lines)
+    return f"width: {size}\nheight: {size}\n---\n{grid}\n---\n"
 
 
-# ── Benchmark 1 : chargement — facteur n (NAVMESH_DENSITY) ───────────────────
-
-N_VALUES   = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20]
-load_means: list[float] = []
-load_stds:  list[float] = []
-load_nodes: list[int]   = []
-
-print("=== Benchmark chargement (facteur n) ===")
-for n in N_VALUES:
-    constants.NAVMESH_DENSITY = n
-    map_module.NAVMESH_DENSITY = n
-
-    reps = max(10, 200 // (n * n + 1))
-    mean, std = measure(lambda: map_module.load_map_from_string(MAP_10x10), number=reps)
-
-    gm = map_module.load_map_from_string(MAP_10x10)
-    load_means.append(mean)
-    load_stds.append(std)
-    load_nodes.append(len(gm.navmesh.nodes))
-    print(f"  n={n:2d} : {len(gm.navmesh.nodes):6d} noeuds -> {mean:.3f} ms ± {std:.3f}")
-
-constants.NAVMESH_DENSITY = 3
-map_module.NAVMESH_DENSITY = 3
+def measure(function: Callable[[], object], repetitions: int) -> tuple[float, float]:
+    """Mesure une fonction et renvoie moyenne/ecart-type en millisecondes."""
+    times: list[float] = []
+    for _ in range(repetitions):
+        # timeit execute une seule fois la fonction; nous repetons nous-memes
+        # pour pouvoir calculer un ecart-type.
+        elapsed_ms = timeit.timeit(function, number=1) * 1000
+        times.append(elapsed_ms)
+    return (statistics.mean(times), statistics.stdev(times))
 
 
-# ── Benchmark 2 : on_update — facteur k (nombre d'ennemis) ───────────────────
+def benchmark_loading() -> list[BenchmarkPoint]:
+    """Mesure le chargement selon NAVMESH_DENSITY."""
+    results: list[BenchmarkPoint] = []
 
-K_VALUES      = [1, 2, 5, 10, 20, 50, 100]
-update_means: list[float] = []
-update_stds:  list[float] = []
-actual_ks:    list[int]   = []
+    # La map reste fixe: le seul facteur qui varie est NAVMESH_DENSITY.
+    map_text = make_open_map(20)
+    densities = [1, 2, 3, 4, 5, 7, 10, 14]
 
-window = arcade.Window(800, 600, "Benchmark", antialiasing=False)
-window.set_vsync(False)
+    print("=== Chargement de map selon NAVMESH_DENSITY ===")
+    for density in densities:
+        # NAVMESH_DENSITY est importee dans constants.py et dans map.py.
+        # On modifie les deux valeurs pour que le benchmark utilise bien density.
+        constants.NAVMESH_DENSITY = density
+        map_module.NAVMESH_DENSITY = density
 
-print("\n=== Benchmark on_update (facteur k) ===")
-for k in K_VALUES:
-    map_text = make_map_k_bats(k)
-    gm = map_module.load_map_from_string(map_text)
-    view = GameView(gm)
-    window.show_view(view)
-    actual_k = len(view.enemies)
+        # Les grandes densites coutent plus cher, donc on reduit un peu
+        # le nombre de repetitions pour garder un temps raisonnable.
+        repetitions = max(5, 80 // density)
+        mean_ms, std_ms = measure(
+            lambda: map_module.load_map_from_string(map_text),
+            repetitions,
+        )
 
-    # Chauffe : 30 frames pour stabiliser les caches
-    for _ in range(30):
-        view.on_update(1 / 60)
+        # On recharge une map pour compter les noeuds du navmesh associe.
+        loaded_map = map_module.load_map_from_string(map_text)
+        node_count = len(loaded_map.navmesh.nodes)
+        results.append(BenchmarkPoint(density, node_count, mean_ms, std_ms))
 
-    # Mesure : 300 appels individuels -> moyenne + écart-type
-    mean, std = measure(lambda: view.on_update(1 / 60), number=300)
+        print(
+            f"n={density:2d}, noeuds={node_count:6d}, "
+            f"temps={mean_ms:8.3f} ms +/- {std_ms:.3f}"
+        )
 
-    update_means.append(mean)
-    update_stds.append(std)
-    actual_ks.append(actual_k)
-    print(f"  k={actual_k:3d} : {mean:.3f} ms/frame ± {std:.3f}")
-
-window.close()
+    # On restaure la valeur normale pour ne pas laisser le projet modifie.
+    constants.NAVMESH_DENSITY = DEFAULT_NAVMESH_DENSITY
+    map_module.NAVMESH_DENSITY = DEFAULT_NAVMESH_DENSITY
+    return results
 
 
-# ── Graphes ───────────────────────────────────────────────────────────────────
+def benchmark_update() -> list[BenchmarkPoint]:
+    """Mesure on_update selon le nombre d'ennemis."""
+    results: list[BenchmarkPoint] = []
+    enemy_counts = [1, 3, 10, 30, 100, 300]
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    # on_update a besoin d'une vraie Window Arcade, mais on appelle directement
+    # view.on_update au lieu de window.test, comme demande dans la consigne.
+    window = arcade.Window(800, 600, "Benchmark", antialiasing=False)
+    window.set_vsync(False)
 
-# Graphe 1 : chargement vs n
-ax1.errorbar(N_VALUES, load_means, yerr=load_stds, fmt="o-", color="steelblue",
-             capsize=4, label="mesuré (± écart-type)")
-scale1 = load_means[0] / N_VALUES[0] ** 2
-ax1.plot(N_VALUES, [scale1 * n ** 2 for n in N_VALUES], "--", color="gray",
-         label="Θ(n²) théorique")
-ax1.set_xlabel("NAVMESH_DENSITY (n)")
-ax1.set_ylabel("Temps (ms)")
-ax1.set_title("Chargement — facteur n\n(map 10×10 fixe)")
-ax1.legend()
-ax1.grid(True, alpha=0.3)
+    print("\n=== on_update selon le nombre d'ennemis ===")
+    try:
+        for enemy_count in enemy_counts:
+            game_map = map_module.load_map_from_string(make_map_with_bats(enemy_count))
+            view = GameView(game_map)
+            window.show_view(view)
+            actual_count = len(view.enemies)
 
-# Graphe 2 : on_update vs k
-ax2.errorbar(actual_ks, update_means, yerr=update_stds, fmt="o-", color="darkorange",
-             capsize=4, label="mesuré (± écart-type)")
-scale2 = update_means[0] / actual_ks[0]
-ax2.plot(actual_ks, [scale2 * k for k in actual_ks], "--", color="gray",
-         label="Θ(k) théorique")
-ax2.set_xlabel("Nombre d'ennemis (k)")
-ax2.set_ylabel("Temps moyen par frame (ms)")
-ax2.set_title("on_update — facteur k\n(chauves-souris)")
-ax2.legend()
-ax2.grid(True, alpha=0.3)
+            # Quelques frames de chauffe evitent de mesurer surtout l'initialisation.
+            for _ in range(20):
+                view.on_update(1 / 60)
 
-plt.tight_layout()
-plt.savefig("benchmarks.png", dpi=150)
-plt.show()
-print("\nGraphes sauvegardés dans benchmarks.png")
+            # On mesure uniquement le cout de on_update pour une frame.
+            mean_ms, std_ms = measure(lambda: view.on_update(1 / 60), 200)
+            results.append(BenchmarkPoint(actual_count, 0, mean_ms, std_ms))
+
+            print(
+                f"k={actual_count:3d}, "
+                f"temps={mean_ms:8.3f} ms/frame +/- {std_ms:.3f}"
+            )
+    finally:
+        # Fermer la fenetre evite de laisser une ressource graphique ouverte.
+        window.close()
+
+    return results
+
+
+def write_csv(
+    loading_results: list[BenchmarkPoint],
+    update_results: list[BenchmarkPoint],
+) -> None:
+    """Sauvegarde les mesures brutes dans un fichier CSV."""
+    with open(BENCHMARK_CSV, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["benchmark", "factor", "extra", "mean_ms", "std_ms"])
+
+        # extra = nombre de noeuds du navmesh.
+        for point in loading_results:
+            writer.writerow(["loading_density", point.label, point.extra, point.mean_ms, point.std_ms])
+
+        # extra n'est pas utilise pour on_update, donc il vaut 0.
+        for point in update_results:
+            writer.writerow(["update_enemies", point.label, point.extra, point.mean_ms, point.std_ms])
+
+
+def draw_graphs(
+    loading_results: list[BenchmarkPoint],
+    update_results: list[BenchmarkPoint],
+) -> None:
+    """Dessine les deux graphes demandes dans les consignes."""
+    densities = [point.label for point in loading_results]
+    load_means = [point.mean_ms for point in loading_results]
+    load_stds = [point.std_ms for point in loading_results]
+
+    enemies = [point.label for point in update_results]
+    update_means = [point.mean_ms for point in update_results]
+    update_stds = [point.std_ms for point in update_results]
+
+    figure, (load_axis, update_axis) = plt.subplots(1, 2, figsize=(13, 5))
+
+    # Graphe 1: mesures reelles du chargement + courbe theorique en n^2.
+    load_axis.errorbar(densities, load_means, yerr=load_stds, fmt="o-", capsize=4)
+    load_scale = load_means[0] / (densities[0] ** 2)
+    load_axis.plot(
+        densities,
+        [load_scale * density**2 for density in densities],
+        "--",
+        label="Theta(n^2)",
+    )
+    load_axis.set_title("Chargement selon NAVMESH_DENSITY")
+    load_axis.set_xlabel("NAVMESH_DENSITY")
+    load_axis.set_ylabel("Temps moyen (ms)")
+    load_axis.grid(True, alpha=0.3)
+    load_axis.legend()
+
+    # Graphe 2: mesures reelles de on_update + courbe theorique en k.
+    update_axis.errorbar(enemies, update_means, yerr=update_stds, fmt="o-", capsize=4)
+    update_scale = update_means[0] / enemies[0]
+    update_axis.plot(
+        enemies,
+        [update_scale * enemy_count for enemy_count in enemies],
+        "--",
+        label="Theta(k)",
+    )
+    update_axis.set_title("on_update selon le nombre d'ennemis")
+    update_axis.set_xlabel("Nombre d'ennemis")
+    update_axis.set_ylabel("Temps moyen par frame (ms)")
+    update_axis.grid(True, alpha=0.3)
+    update_axis.legend()
+
+    figure.tight_layout()
+    figure.savefig(BENCHMARK_IMAGE, dpi=150)
+    plt.close(figure)
+
+
+def main() -> None:
+    loading_results = benchmark_loading()
+    update_results = benchmark_update()
+    write_csv(loading_results, update_results)
+    draw_graphs(loading_results, update_results)
+    print(f"\nMesures sauvegardees dans {BENCHMARK_CSV}")
+    print(f"Graphes sauvegardes dans {BENCHMARK_IMAGE}")
+
+
+if __name__ == "__main__":
+    main()

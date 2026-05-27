@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Documentation du projet Arcade</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: #1a1a2e;
+      background: #ffffff;
+      padding: 48px 64px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      color: #16213e;
+      border-bottom: 3px solid #0f3460;
+      padding-bottom: 10px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      font-size: 18px;
+      color: #0f3460;
+      margin-top: 36px;
+      margin-bottom: 4px;
+      border-left: 4px solid #e94560;
+      padding-left: 10px;
+    }
+
+    h3 {
+      font-size: 14px;
+      color: #e94560;
+      margin-top: 18px;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    p {
+      margin-bottom: 10px;
+      color: #2c2c3e;
+    }
+
+    ul {
+      margin: 6px 0 10px 20px;
+    }
+
+    li {
+      margin-bottom: 5px;
+      color: #2c2c3e;
+    }
+
+    code {
+      background: #f0f4f8;
+      border: 1px solid #d0dae4;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12.5px;
+      color: #0f3460;
+    }
+
+    .file-block {
+      background: #f7f9fc;
+      border: 1px solid #dde4ee;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-top: 28px;
+    }
+
+    .file-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #16213e;
+      margin-bottom: 8px;
+    }
+
+    .file-role {
+      font-size: 12.5px;
+      font-style: italic;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .class-block {
+      background: #ffffff;
+      border-left: 3px solid #0f3460;
+      padding: 10px 16px;
+      margin-top: 14px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .class-name {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0f3460;
+      margin-bottom: 4px;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: 20px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .tag-class    { background: #dce8ff; color: #1a4a9b; }
+    .tag-enum     { background: #fff3dc; color: #a05a00; }
+    .tag-dataclass{ background: #dff6e4; color: #1a6e37; }
+    .tag-abstract { background: #f3e8ff; color: #6b21a8; }
+    .tag-function { background: #ffe8e8; color: #b91c1c; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #dde4ee;
+      margin: 40px 0;
+    }
+
+    @media print {
+      body { padding: 24px 32px; }
+      .file-block { break-inside: avoid; }
+      .class-block { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Documentation du projet Arcade</h1>
+<p class="subtitle">Description détaillée de chaque fichier et de chaque classe &mdash; Projet POO Python</p>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════════════ main.py -->
+<div class="file-block">
+  <div class="file-title">📄 main.py</div>
+  <div class="file-role">Point d'entrée du programme</div>
+  <p>
+    Ce fichier est le premier à être exécuté. Il lit les arguments de la ligne de commande pour
+    savoir quel fichier de map charger. Si aucun argument n'est fourni, il charge le fichier par défaut
+    <code>maps/map1.txt</code>. Il gère aussi les erreurs de lecture de map : si le fichier est
+    introuvable ou mal formaté, un message d'erreur est affiché et le programme s'arrête proprement
+    sans crash.
+  </p>
+  <p>
+    Une fois la map chargée, il crée la fenêtre arcade avec les dimensions maximales définies dans
+    les constantes, instancie la vue principale <code>GameView</code>, et lance la boucle de jeu
+    avec <code>arcade.run()</code>.
+  </p>
+
+  <div class="class-block">
+    <div class="class-name">main() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Orchestre le démarrage : lecture du fichier de map, gestion des exceptions
+      <code>InvalidMapFileException</code>, création de la fenêtre et lancement de la boucle arcade.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ constants.py -->
+<div class="file-block">
+  <div class="file-title">📄 constants.py</div>
+  <div class="file-role">Centralisation de toutes les valeurs configurables du jeu</div>
+  <p>
+    Regroupe en un seul endroit toutes les valeurs numériques et chaînes utilisées dans le projet :
+    vitesses de déplacement du joueur et des ennemis, taille des tiles, dimensions maximales de la
+    fenêtre, vitesse du boomerang, durée d'invincibilité, fréquence d'alternance des pics, etc.
+  </p>
+  <p>
+    L'intérêt de ce fichier est d'éviter les <em>magic numbers</em> (chiffres sans signification)
+    éparpillés dans le code. Si on veut rendre le jeu plus rapide ou ajuster un comportement, on
+    modifie uniquement ce fichier sans toucher à la logique.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════ textures.py -->
+<div class="file-block">
+  <div class="file-title">📄 textures.py</div>
+  <div class="file-role">Chargement unique de toutes les ressources visuelles</div>
+  <p>
+    Charge une seule fois au démarrage toutes les textures (images statiques) et animations
+    (séquences d'images) du jeu : les sprites du joueur dans ses 4 directions, les ennemis
+    (chauve-souris, blob, spinner), les objets du monde (cristaux, clés, coffres, pics, trous),
+    et les animations des armes (boomerang, épée dans 4 directions).
+  </p>
+  <p>
+    Les autres fichiers importent directement ces constantes globales plutôt que de recharger
+    les images eux-mêmes, ce qui évite de lire plusieurs fois le disque et de dupliquer les
+    données en mémoire.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════ map.py -->
+<div class="file-block">
+  <div class="file-title">📄 map.py</div>
+  <div class="file-role">Représentation abstraite de la map et construction du graphe de navigation</div>
+
+  <div class="class-block">
+    <div class="class-name">InvalidMapFileException <span class="tag tag-class">classe</span></div>
+    <p>
+      Exception personnalisée levée dès qu'un problème est détecté dans un fichier de map :
+      format invalide, dimensions incorrectes, caractère inconnu, nombre de joueurs différent de 1, etc.
+      Elle hérite de <code>Exception</code> pour être attrapée séparément des autres erreurs Python.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">GridCell <span class="tag tag-enum">enum</span></div>
+    <p>
+      Enumération qui représente le type de chaque case de la grille de la map.
+      Chaque valeur correspond à un caractère du fichier texte :
+    </p>
+    <ul>
+      <li><code>GRASS</code> — case vide sur laquelle le joueur peut marcher</li>
+      <li><code>BUSH</code> — buisson bloquant (mur)</li>
+      <li><code>CRYSTAL</code> — cristal ramassable</li>
+      <li><code>HOLE</code> — trou dans lequel le joueur tombe</li>
+      <li><code>SPINNER_HORIZONTAL</code> / <code>SPINNER_VERTICAL</code> — piège en mouvement</li>
+      <li><code>BAT</code> / <code>BLOB</code> — ennemis</li>
+      <li><code>KEY</code> / <code>CHEST</code> — clé et coffre</li>
+      <li><code>SPIKES</code> — pics alternativement actifs et inactifs</li>
+    </ul>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Map <span class="tag tag-dataclass">dataclass</span></div>
+    <p>
+      Structure de données immuable (<code>frozen=True</code>) qui représente une map chargée.
+      Elle contient les dimensions (<code>width</code>, <code>height</code>), la position de départ
+      du joueur, la grille interne <code>_grid</code> (liste 2D de <code>GridCell</code>),
+      et le graphe de navigation <code>navmesh</code>.
+    </p>
+    <p>
+      La méthode <code>get(x, y)</code> est le seul moyen d'accéder à une case : elle vérifie
+      que les coordonnées sont dans les bornes et retourne le <code>GridCell</code> correspondant.
+      L'axe Y est inversé par rapport au fichier texte (ligne 0 du fichier = sommet de la map =
+      indice <code>height-1</code> dans la grille) pour correspondre au repère arcade où Y croît vers le haut.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">build_navmesh() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Construit un graphe NetworkX sur toutes les cases marchables de la map. Chaque case est
+      découpée en <code>NAVMESH_DENSITY × NAVMESH_DENSITY</code> sous-noeuds. Un noeud est supprimé
+      s'il se trouve à moins d'une tile d'un buisson (pour que les ennemis ne longent pas les murs
+      de trop près). Les noeuds restants sont reliés à leurs voisins directs et diagonaux avec un
+      poids proportionnel à la distance (1 pour orthogonal, √2 pour diagonal). Ce graphe est utilisé
+      par le Blob pour calculer ses chemins avec Dijkstra.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">load_map_from_string() / load_map_from_file() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Lit un fichier texte dans le format suivant :
+    </p>
+    <ul>
+      <li>Ligne 1 : <code>width: N</code></li>
+      <li>Ligne 2 : <code>height: N</code></li>
+      <li>Ligne 3 : <code>---</code></li>
+      <li>Lignes suivantes : la grille caractère par caractère</li>
+      <li>Dernière ligne : <code>---</code></li>
+    </ul>
+    <p>
+      La fonction valide chaque étape (séparateurs, dimensions, caractères) et lève
+      <code>InvalidMapFileException</code> au moindre problème. Elle collecte également les
+      positions de toutes les cases marchables et des buissons pour les passer à <code>build_navmesh</code>.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ player.py -->
+<div class="file-block">
+  <div class="file-title">📄 player.py</div>
+  <div class="file-role">Gestion du personnage contrôlé par le joueur</div>
+
+  <div class="class-block">
+    <div class="class-name">Direction <span class="tag tag-enum">enum</span></div>
+    <p>
+      Enumération simple des 4 directions possibles : <code>NORTH</code>, <code>SOUTH</code>,
+      <code>EAST</code>, <code>WEST</code>. Elle est utilisée à la fois pour l'animation du joueur
+      (choisir le bon sprite) et pour orienter les armes (le boomerang et l'épée partent dans la
+      direction où regarde le joueur).
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Player <span class="tag tag-class">classe</span></div>
+    <p>
+      Le sprite du joueur, héritant de <code>arcade.TextureAnimationSprite</code>. Il possède :
+    </p>
+    <ul>
+      <li><strong>Les touches pressées</strong> (<code>up_pressed</code>, <code>down_pressed</code>, etc.) — mises à jour par <code>GameView.on_key_press/release</code></li>
+      <li><strong>La direction</strong> (<code>Direction</code>) — déterminée par la dernière touche directionnelle active</li>
+      <li><strong>Le score</strong> — nombre de cristaux collectés</li>
+      <li><strong>Les clés</strong> (<code>key</code>) — nombre de clés en possession</li>
+      <li><strong>L'invincibilité temporaire</strong> (<code>indestructible</code>, <code>indestructibility_timer</code>) — activée après ouverture d'un coffre</li>
+    </ul>
+    <p>
+      <code>player_move()</code> calcule le déplacement (<code>change_x</code>, <code>change_y</code>)
+      en fonction des touches actives, met à jour la direction, et choisit l'animation ou la texture
+      correspondante (texture de bouclier si invincible, sinon animation idle dans la bonne direction).
+    </p>
+    <p>
+      <code>player_become_indestructible()</code> active l'invincibilité et lance le minuteur.
+      Le décompte se fait dans <code>GameView.do_on_update</code> frame par frame.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ enemies.py -->
+<div class="file-block">
+  <div class="file-title">📄 enemies.py</div>
+  <div class="file-role">Définition et comportement de tous les ennemis</div>
+
+  <div class="class-block">
+    <div class="class-name">Enemy <span class="tag tag-abstract">classe abstraite</span></div>
+    <p>
+      Classe mère de tous les ennemis mobiles. Elle hérite de <code>arcade.TextureAnimationSprite</code>
+      et déclare la méthode abstraite <code>move(navmesh, player_pos)</code> que chaque sous-classe
+      doit implémenter. <code>player_pos</code> vaut <code>None</code> si le joueur n'est pas dans
+      la zone de vision de l'ennemi.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Bat <span class="tag tag-class">classe</span></div>
+    <p>
+      La chauve-souris vole de manière pseudo-aléatoire dans une zone carrée autour de sa position
+      de départ (définie par <code>BAT_ZONE_WIDTH</code>). À chaque frame, avec une probabilité de
+      <code>BAT_FRAQUENCY_MODIF_DIRECTION</code>%, elle modifie légèrement son angle de direction
+      (±30°). Elle calcule ensuite la prochaine position et ne se déplace que si elle reste dans
+      sa zone. Si la prochaine position sortirait de la zone, elle fait demi-tour en ajoutant
+      entre 135° et 225° à sa direction, créant un effet de rebond naturel.
+    </p>
+    <p>
+      Le navmesh n'est pas utilisé par la Bat : elle vole librement et ignore les obstacles.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Blob <span class="tag tag-class">classe</span></div>
+    <p>
+      L'ennemi le plus complexe du jeu. Il utilise le navmesh pour se déplacer intelligemment en
+      calculant le chemin optimal vers sa cible avec l'algorithme de Dijkstra
+      (<code>nx.dijkstra_path</code>). Il suit une liste de noeuds intermédiaires
+      (<code>self.path</code>) en avançant vers chaque noeud l'un après l'autre.
+    </p>
+    <p>
+      Son comportement dépend de si le joueur est visible :
+    </p>
+    <ul>
+      <li><strong>Joueur visible</strong> (dans la zone ET ligne de vue dégagée) : le blob recalcule un nouveau chemin directement vers le joueur à chaque fois qu'il atteint un noeud intermédiaire.</li>
+      <li><strong>Joueur invisible</strong> : il choisit une destination aléatoire dans sa zone de patrouille (définie par <code>BLOB_ZONE_WIDTH</code>), cherche un chemin vers ce point, et attend d'y arriver avant d'en choisir un autre.</li>
+    </ul>
+    <p>
+      <code>closest_node()</code> trouve le noeud du graphe le plus proche d'un point pixel en
+      parcourant tous les noeuds et en cherchant le minimum de distance euclidienne.
+      <code>new_target()</code> orchestre le recalcul complet du chemin.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">SpinnerSprite <span class="tag tag-class">classe</span></div>
+    <p>
+      Piège en forme de lame qui se déplace en ligne droite entre deux bornes fixes. Ces bornes
+      sont calculées une seule fois à la construction du monde en cherchant les buissons les plus
+      proches de chaque côté du spinner (fonctions <code>compute_horizontal_spinner_limits</code>
+      et <code>compute_vertical_spinner_limits</code>).
+    </p>
+    <p>
+      La méthode <code>bounce()</code> vérifie si le spinner a atteint une borne : si oui, il
+      inverse sa vitesse et reste à la borne. <code>spinner_move()</code> applique le déplacement
+      puis appelle <code>bounce()</code> sur l'axe correspondant (X pour horizontal, Y pour vertical).
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ weapons.py -->
+<div class="file-block">
+  <div class="file-title">📄 weapons.py</div>
+  <div class="file-role">Gestion des armes du joueur</div>
+
+  <div class="class-block">
+    <div class="class-name">WeaponType <span class="tag tag-enum">enum</span></div>
+    <p>
+      Distingue les deux armes disponibles : <code>BOOMERANG</code> et <code>SWORD</code>.
+      Utilisé dans <code>GameView</code> pour savoir quelle arme utiliser lors de l'appui sur D,
+      et dans <code>Text</code> pour afficher le nom de l'arme active.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Weapon <span class="tag tag-abstract">classe abstraite</span></div>
+    <p>
+      Classe mère des deux armes. Elle initialise le sprite avec l'animation fournie, le rend
+      invisible et inactif par défaut. Elle fournit <code>desactivate()</code> (rend l'arme invisible
+      et inactive) et <code>kill_enemies()</code> (détecte les collisions avec les ennemis et les
+      supprime des listes de sprites).
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">BoomerangState <span class="tag tag-enum">enum</span></div>
+    <p>
+      Modélise les 3 états possibles du boomerang : <code>INACTIVE</code> (au repos),
+      <code>LAUNCHING</code> (en vol vers l'avant), <code>RETURNING</code> (en retour vers le joueur).
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Boomerang <span class="tag tag-class">classe</span></div>
+    <p>
+      Arme à distance qui suit une trajectoire aller-retour. Lors du lancement (<code>launch()</code>),
+      il se place sur le joueur et reçoit une vitesse dans sa direction.
+    </p>
+    <p>
+      Durant la phase <code>LAUNCHING</code>, il avance en ligne droite, tue les ennemis touchés,
+      et passe en <code>RETURNING</code> s'il heurte un mur ou dépasse <code>BOOMERANG_MAX_DISTANCE</code>.
+      Durant la phase <code>RETURNING</code>, il calcule à chaque frame le vecteur normalisé vers le
+      joueur, avance dans cette direction, et continue de tuer les ennemis jusqu'à être suffisamment
+      proche du joueur pour se désactiver.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">Sword <span class="tag tag-class">classe</span></div>
+    <p>
+      Arme de corps-à-corps qui apparaît brièvement à côté du joueur. Lors de l'attaque
+      (<code>attack()</code>), elle choisit l'animation correspondant à la direction du joueur
+      (épée levée, baissée, gauche ou droite) et se positionne légèrement décalée du centre du
+      joueur dans cette direction. Elle reste active pendant 0.3 secondes (environ 6 frames à 60fps),
+      tue les ennemis et ramasse les cristaux dans sa zone de collision pendant toute cette durée,
+      puis se désactive automatiquement.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ world_builder.py -->
+<div class="file-block">
+  <div class="file-title">📄 world_builder.py</div>
+  <div class="file-role">Construction du monde visuel à partir de la map abstraite</div>
+  <p>
+    Ce fichier fait le lien entre la représentation abstraite de la map (<code>GridCell</code>) et
+    les sprites arcade affichables. Il parcourt chaque case et crée les bons objets visuels.
+  </p>
+
+  <div class="class-block">
+    <div class="class-name">WorldSprites <span class="tag tag-dataclass">dataclass</span></div>
+    <p>
+      Conteneur regroupant toutes les <code>SpriteList</code> construites à partir de la map :
+    </p>
+    <ul>
+      <li><code>grounds</code> — tuiles d'herbe sous chaque case (fond du monde)</li>
+      <li><code>walls</code> — buissons (avec spatial hash pour collision rapide)</li>
+      <li><code>crystals</code>, <code>keys</code>, <code>chests</code>, <code>spikes</code> — objets interactifs</li>
+      <li><code>spinners</code> — pièges en mouvement linéaire</li>
+      <li><code>holes</code> — trous mortels</li>
+      <li><code>enemies</code> — Bat et Blob (ennemis mobiles)</li>
+      <li><code>all_enemies</code> — tous les ennemis incluant les spinners (pour les collisions communes)</li>
+    </ul>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">build_world() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Parcourt toutes les cases de la map. Pour chaque case, elle place toujours une tuile d'herbe
+      en fond, puis crée le sprite additionnel correspondant au <code>GridCell</code> : buisson,
+      cristal, clé, coffre, pic, spinner, trou, chauve-souris ou blob. Retourne un
+      <code>WorldSprites</code> complet.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">make_spinner() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Crée un <code>SpinnerSprite</code> et calcule ses bornes de déplacement en appelant
+      <code>compute_horizontal_spinner_limits</code> ou <code>compute_vertical_spinner_limits</code>
+      selon l'orientation, puis convertit les coordonnées grille en pixels.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">grid_to_pixels() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Convertit une coordonnée de grille (indice de case) en coordonnée pixel centrée sur la case :
+      <code>i × TILE_SIZE + TILE_SIZE // 2</code>. Utilisée pour placer tous les sprites au bon
+      endroit à l'écran.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ systems.py -->
+<div class="file-block">
+  <div class="file-title">📄 systems.py</div>
+  <div class="file-role">Systèmes de mise à jour indépendants appelés à chaque frame</div>
+  <p>
+    Ce fichier regroupe des fonctions pures qui n'appartiennent à aucune classe mais qui doivent
+    être appelées à chaque frame. Le fait de les isoler ici allège <code>GameView</code> et les
+    rend plus faciles à tester.
+  </p>
+
+  <div class="class-block">
+    <div class="class-name">update_camera_position() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Centre la caméra sur le joueur, mais sans jamais laisser voir hors des bords du monde.
+      La fonction interne <code>_clamp_camera()</code> bloque la position de la caméra à une demi-fenêtre
+      du bord de la map, de sorte que le fond reste toujours rempli même quand le joueur est dans un coin.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">update_enemies() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Déplace tous les spinners via <code>spinner_move()</code>. Pour chaque ennemi de type
+      Bat ou Blob, calcule la distance euclidienne au joueur. Si le joueur est à moins de
+      5 tiles ET qu'une ligne de vue directe existe (vérifiée avec <code>arcade.has_line_of_sight</code>
+      qui teste les intersections avec les murs), l'ennemi reçoit la position réelle du joueur.
+      Sinon il reçoit <code>None</code> et patrouille.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ interactions.py -->
+<div class="file-block">
+  <div class="file-title">📄 interactions.py</div>
+  <div class="file-role">Gestion des collisions et des effets de jeu</div>
+
+  <div class="class-block">
+    <div class="class-name">should_restart_after_collision() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Gère deux types de mort du joueur. Collision avec un ennemi : si le joueur est vulnérable,
+      retourne <code>True</code> (mort) ; s'il est invincible, il détruit l'ennemi au contact.
+      Chute dans un trou : calculée par distance euclidienne (le joueur tombe si son centre est à
+      moins de 16 pixels du centre d'un trou, ce qui simule le fait de "tomber" en étant à cheval
+      sur le trou).
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">update_spikes() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Maintient un minuteur (<code>spikes_timer</code>) qui s'incrémente de <code>delta_time</code>
+      à chaque frame. Quand il dépasse <code>SPIKES_SWITCH_TIME</code>, l'état actif/inactif des pics
+      est inversé, le minuteur est remis à zéro, et la transparence de chaque spike est mise à jour
+      (255 = opaque = dangereux, 100 = semi-transparent = inoffensif). Retourne le nouveau timer
+      et le nouvel état pour mise à jour dans <code>GameView</code>.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">should_restart_after_spikes_collision() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Vérifie simplement si le joueur est en collision avec un pic actif. Si les pics sont inactifs,
+      retourne immédiatement <code>False</code> sans faire de calcul.
+    </p>
+  </div>
+
+  <div class="class-block">
+    <div class="class-name">update_collectibles() <span class="tag tag-function">fonction</span></div>
+    <p>
+      Gère la collecte de tous les objets ramassables en une seule fonction :
+    </p>
+    <ul>
+      <li><strong>Cristaux</strong> : supprimés, son joué, score incrémenté, texte mis à jour. Si tous les cristaux sont ramassés, affiche le message de fin.</li>
+      <li><strong>Clés</strong> : supprimées, son joué, compteur de clés incrémenté.</li>
+      <li><strong>Coffres</strong> : ouverts uniquement si le joueur possède au moins une clé. La texture passe à "coffre vide", un son est joué, la clé est consommée, et le joueur devient temporairement invincible.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ text.py -->
+<div class="file-block">
+  <div class="file-title">📄 text.py</div>
+  <div class="file-role">Affichage de l'interface utilisateur (HUD)</div>
+
+  <div class="class-block">
+    <div class="class-name">Text <span class="tag tag-class">classe</span></div>
+    <p>
+      Gère tous les éléments textuels affichés à l'écran, superposés au jeu sans suivre la caméra.
+      Elle utilise deux mécanismes importants :
+    </p>
+    <ul>
+      <li><strong>Un <code>Batch</code> pyglet</strong> : regroupe tous les objets <code>arcade.Text</code> dans un seul appel de rendu GPU au lieu de les dessiner un par un, ce qui est plus efficace.</li>
+      <li><strong>Une <code>Camera2D</code> fixe</strong> : le HUD est dessiné dans le repère de la fenêtre (position fixe) et non dans le repère du monde (qui bouge avec le joueur).</li>
+    </ul>
+    <p>Contenu affiché :</p>
+    <ul>
+      <li><code>score_text</code> — "X / N cristaux" en haut à gauche</li>
+      <li><code>key_text</code> — "Clés : X" en haut à droite</li>
+      <li><code>weapon_text</code> — arme active en bas à gauche</li>
+      <li><code>end_text</code> — message "END" centré, affiché quand tous les cristaux sont ramassés</li>
+    </ul>
+    <p>
+      Les méthodes <code>update_score()</code>, <code>update_keys()</code> et <code>update_weapon()</code>
+      modifient uniquement la propriété <code>.text</code> des objets existants, sans les recréer.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ gameview.py -->
+<div class="file-block">
+  <div class="file-title">📄 gameview.py</div>
+  <div class="file-role">Vue principale du jeu — chef d'orchestre de toute la boucle de jeu</div>
+
+  <div class="class-block">
+    <div class="class-name">GameView <span class="tag tag-class">classe</span></div>
+    <p>
+      C'est la classe centrale du projet. Elle hérite de <code>arcade.View</code> et est responsable
+      de tout ce qui se passe pendant une partie. Elle joue le rôle de "chef d'orchestre" :
+      elle ne contient pas de logique métier elle-même, mais délègue à chaque système au bon moment.
+    </p>
+
+    <p><strong>Initialisation (<code>__init__</code>)</strong> :</p>
+    <ul>
+      <li>Charge les sons (cristaux, coffres, clés)</li>
+      <li>Appelle <code>build_world()</code> pour obtenir toutes les SpriteLists</li>
+      <li>Crée le joueur à sa position de départ</li>
+      <li>Crée les armes (boomerang et épée) et leurs SpriteLists dédiées</li>
+      <li>Initialise le moteur physique <code>PhysicsEngineSimple</code> (bloque le joueur contre les murs)</li>
+      <li>Crée l'affichage texte HUD</li>
+    </ul>
+
+    <p><strong>Boucle de jeu (<code>do_on_update</code>)</strong>, exécutée à chaque frame :</p>
+    <ul>
+      <li>Mise à jour de la physique (gère les collisions joueur/murs)</li>
+      <li>Animation et déplacement du joueur</li>
+      <li>Décompte de l'invincibilité</li>
+      <li>Suivi de la caméra</li>
+      <li>Vérification des collisions mortelles (ennemis, trous)</li>
+      <li>Mise à jour des pics (timer + alternance)</li>
+      <li>Vérification collision joueur/pics</li>
+      <li>Mise à jour des animations (spinners, ennemis, armes)</li>
+      <li>Mise à jour du boomerang et de l'épée</li>
+      <li>Déplacement des ennemis</li>
+      <li>Collecte des objets</li>
+    </ul>
+
+    <p><strong>Gestion du clavier</strong> :</p>
+    <ul>
+      <li>Flèches directionnelles → déplacement du joueur</li>
+      <li>Touche D → utilise l'arme active (lance le boomerang ou attaque avec l'épée)</li>
+      <li>Touche R → change d'arme active</li>
+      <li>Touche Échap → redémarre la partie</li>
+    </ul>
+
+    <p>
+      La méthode <code>restart()</code> crée simplement une nouvelle instance de <code>GameView</code>
+      avec la même map et la passe à la fenêtre. Cela remet tout à zéro proprement sans avoir à
+      réinitialiser chaque variable manuellement.
+    </p>
+  </div>
+</div>
+
+<hr class="divider" />
+<p style="text-align:center; color:#aaa; font-size:12px;">Documentation générée pour la présentation orale &mdash; Projet POO Arcade</p>
+
+</body>
+</html>

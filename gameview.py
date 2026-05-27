@@ -1,14 +1,14 @@
 import cProfile
 import arcade
 from text import Text
-from world_builder import build_world
 from systems import update_camera_position, update_enemies, update_collectibles
 from enemies import Enemy, SpinnerSprite, Blob
 from constants import TILE_SIZE, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, DRAW_NAVMESHES
 from player import Player
 from weapons import Boomerang, Sword
 from map import Map
-from sprite import grid_to_pixels, WeaponType
+from world_builder import build_world, grid_to_pixels
+from weapons import WeaponType
 from interactions import (
     should_restart_after_collision,
     update_spikes,

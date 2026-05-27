@@ -120,7 +120,7 @@ import arcade
 
 from gameview import GameView
 from map import load_map_from_string
-from sprite import grid_to_pixels
+from world_builder import grid_to_pixels
 
 
 def test_player_can_walk_between_separated_holes(window: arcade.Window) -> None:

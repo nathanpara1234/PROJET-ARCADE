@@ -1,7 +1,7 @@
 ﻿import arcade
 from pyglet.graphics import Batch
 from player import Player
-from sprite import WeaponType
+from weapons import WeaponType
 
 
 class Text:

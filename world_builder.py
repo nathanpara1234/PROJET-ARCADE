@@ -4,11 +4,7 @@ import arcade
 from constants import TILE_SIZE, SCALE, SPINNER_SPEED
 from enemies import Bat, Blob, SpinnerSprite, compute_horizontal_spinner_limits, compute_vertical_spinner_limits
 from map import Map, GridCell
-from sprite import (
-    make_tile_sprite,
-    make_tile_animation_sprite,
-    grid_to_pixels,
-)
+
 from textures import (
     TEXTURE_GRASS,
     TEXTURE_BUSH,
@@ -19,6 +15,32 @@ from textures import (
     ANIMATION_SPIKES,
     ANIMATION_SPINNER,
 )
+
+def grid_to_pixels(i: int) -> int:
+    return i * TILE_SIZE + (TILE_SIZE // 2)
+
+
+def make_tile_sprite(texture: arcade.Texture, x: int, y: int) -> arcade.Sprite:
+    return arcade.Sprite(
+        texture,
+        scale=SCALE,
+        center_x=grid_to_pixels(x),
+        center_y=grid_to_pixels(y),
+    )
+
+
+def make_tile_animation_sprite(
+    animation: arcade.TextureAnimation,
+    x: int,
+    y: int,
+) -> arcade.TextureAnimationSprite:
+    return arcade.TextureAnimationSprite(
+        animation=animation,
+        scale=SCALE,
+        center_x=grid_to_pixels(x),
+        center_y=grid_to_pixels(y),
+    )
+
 
 
 @dataclass

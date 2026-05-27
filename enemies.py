@@ -10,8 +10,8 @@ from player import Player
 from map import (
     Map,
     GridCell,
-    SpinnerData
 )
+
 
 class SpinnerSprite(arcade.TextureAnimationSprite):# Spinner qui se deplace en ligne droite entre deux bornes
 
@@ -83,6 +83,7 @@ def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -
         i += 1
 
     return (bottom_y, top_y)
+
 
 
 class Enemy(arcade.TextureAnimationSprite):# création d'une classe mère Enemy

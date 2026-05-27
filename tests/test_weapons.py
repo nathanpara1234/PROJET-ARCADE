@@ -5,7 +5,7 @@ from constants import BOOMERANG_MAX_DISTANCE
 from gameview import GameView
 from map import load_map_from_string
 from player import Direction
-from sprite import WeaponType
+from weapons import WeaponType
 from weapons import BoomerangState
 
 

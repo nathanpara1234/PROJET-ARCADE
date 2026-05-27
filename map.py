@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 from math import sqrt
-from textwrap import dedent
-from typing import TypeAlias
 
 import networkx as nx
 
@@ -27,14 +25,6 @@ class GridCell(Enum):#car la map est une grille de cellules et chaque cellule pe
     SPIKES = auto()
 
 
-Grid: TypeAlias = tuple[tuple[GridCell, ...], ...]
-
-@dataclass(frozen=True)
-class SpinnerData:# stock la position et l'orientation d'un spinner
-    x: int
-    y: int
-    is_horizontal: bool
-
 @dataclass(frozen=True)
 class Map:
     #dimension de la map
@@ -43,14 +33,8 @@ class Map:
     #position initiale du joueur
     player_start_x: int
     player_start_y: int
-    # Attributs prives: la Map est immutable et on passe par des proprietes
-    _grid: Grid
-    _navmesh: nx.Graph[tuple[float, float]]
-
-    @property
-    def navmesh(self) -> nx.Graph[tuple[float, float]]:
-        """Graphe de navigation expose en lecture seule."""
-        return self._navmesh
+    _grid: list[list[GridCell]]
+    navmesh: nx.Graph
 
     def get(self, x: int, y: int) -> GridCell:#fonction qui retourne le type de la case en (x,y)
         if ((x < 0) or ((x >= self.width) or (y < 0) or (y >= self.height))):#cas impossible
@@ -150,7 +134,7 @@ def load_map_from_string(text: str) -> Map:
     if lines[3 + height] != "---":
         raise InvalidMapFileException("Le separateur --- apres la carte est manquant.")
 
-    grid: list[tuple[GridCell, ...]] = []
+    grid: list[list[GridCell]] = []
     player_positions: list[tuple[int, int]] = []
     cases_marchables: list[tuple[int, int]] = []
     cases_buissons: set[tuple[int, int]] = set()
@@ -206,20 +190,20 @@ def load_map_from_string(text: str) -> Map:
             else:
                 raise InvalidMapFileException(f"Caractere invalide dans la carte : {char!r}")
 
-        grid.insert(0, tuple(row))
+        grid.insert(0, row)# insere la ligne row au debut de la list grid
 
     if len(player_positions) != 1:
         raise InvalidMapFileException("La carte doit contenir exactement un P.")
 
-    player_start_x, player_start_y = player_positions[0]
+    (player_start_x, player_start_y) = player_positions[0]
 
     return Map(
         width=width,
         height=height,
         player_start_x=player_start_x,
         player_start_y=player_start_y,
-        _grid=tuple(grid),
-        _navmesh=build_navmesh(cases_marchables, cases_buissons),
+        _grid=grid,
+        navmesh=build_navmesh(cases_marchables, cases_buissons),
     )
 
 
@@ -231,19 +215,3 @@ def load_map_from_file(filename: str) -> Map:
         raise InvalidMapFileException("Impossible de lire le fichier de map.")
 
     return load_map_from_string(text)
-
-
-def find_spinners(game_map: Map) -> list[SpinnerData]:
-    result: list[SpinnerData] = []
-
-    for y in range(game_map.height):
-        for x in range(game_map.width):
-            cell = game_map.get(x, y)
-
-            if cell == GridCell.SPINNER_HORIZONTAL:
-                result.append(SpinnerData(x=x, y=y, is_horizontal=True))
-
-            elif cell == GridCell.SPINNER_VERTICAL:
-                result.append(SpinnerData(x=x, y=y, is_horizontal=False))
-
-    return result

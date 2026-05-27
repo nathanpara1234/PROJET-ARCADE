@@ -31,7 +31,7 @@ def update_camera_position(# soit la camÃ©ra suit le joueur soit elle est bloquÃ
     )
 
 
-def update_enemies(# pour savoir si le player est dans la zone du blob
+def update_enemies(# pour savoir si le player est dans la zone du blob et faire bouger spinner
     spinners: arcade.SpriteList,
     enemies: arcade.SpriteList,
     player: Player,
@@ -47,40 +47,3 @@ def update_enemies(# pour savoir si le player est dans la zone du blob
             enemy.move(navmesh, player.position)
         else:
             enemy.move(navmesh, None)
-
-
-def update_collectibles(# fonction de collision avec item recuperable
-    player: Player,
-    crystals: arcade.SpriteList,
-    crystal_sound: arcade.Sound,
-    keys: arcade.SpriteList,
-    keys_sound: arcade.Sound,
-    chests: arcade.SpriteList,
-    chests_sound: arcade.Sound,
-    text: Text,
-) -> None:
-    collision_crystals = arcade.check_for_collision_with_list(player, crystals)
-    for crystal in collision_crystals:
-
-        crystal.remove_from_sprite_lists()
-        arcade.play_sound(crystal_sound)
-        player.score += 1
-        text.update_score(player)
-        if player.score >= text.total_crystals:
-            text.show_end()
-
-    collision_keys = arcade.check_for_collision_with_list(player, keys)
-    for key in collision_keys:
-        key.remove_from_sprite_lists()
-        arcade.play_sound(keys_sound)
-        player.key += 1
-        text.update_keys(player)
-
-    collision_chests = arcade.check_for_collision_with_list(player, chests)
-    for chest in collision_chests:
-        if player.key > 0:
-            chest.texture = TEXTURE_EMPTY_CHEST
-            arcade.play_sound(chests_sound)
-            player.key -= 1
-            text.update_keys(player)
-            player.player_become_indestructible()

@@ -282,6 +282,40 @@ def test_blob_chases_player_when_visible(window: arcade.Window) -> None:
     assert distance_after < distance_before
 
 
+def test_blob_sees_closed_gate_as_wall(window: arcade.Window) -> None:
+    """Un portail ferme bloque la ligne de vue du blob comme un mur"""
+    game_map = load_map_from_string(
+        """
+        width: 9
+        height: 5
+        switches:
+          - id: first
+            x: 1
+            y: 1
+        gates:
+          - x: 4
+            y: 2
+            open_if:
+              switch_is_on: first
+        ---
+        xxxxxxxxx
+        x       x
+        x b | P x
+        x^      x
+        xxxxxxxxx
+        ---
+        """
+    )
+    view = GameView(game_map)
+    window.show_view(view)
+    blob = view.enemies[0]
+    gate = view.gates[0]
+
+    assert not gate.is_open
+    assert gate in view.walls
+    assert not arcade.has_line_of_sight(blob.position, view.player.position, view.walls)
+
+
 def test_blob_does_not_see_player_behind_bush_wall(window: arcade.Window) -> None:
     """Un buisson entre le blob et le joueur bloque sa ligne de vue"""
     game_map = load_map_from_string(

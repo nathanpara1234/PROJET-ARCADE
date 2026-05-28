@@ -128,3 +128,11 @@ OPEN_ANIMATION_CHEST: Final[arcade.TextureAnimation] = \
 # === Partie Nico : animation des pics ===
 ANIMATION_SPIKES: Final[arcade.TextureAnimation] = \
     _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Tiles_(animated)/Dungeon/spikes_tile_trap_anim_strip_12.png",12)
+_dungeon_grid_archive: Final = arcade.load_spritesheet(
+    "assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png"
+).get_texture_grid((16, 16), 13, 13 * 12)
+
+TEXTURE_SWITCH_OFF: Final[arcade.Texture] = arcade.load_texture(":resources:/images/tiles/leverLeft.png")
+TEXTURE_SWITCH_ON: Final[arcade.Texture] = arcade.load_texture(":resources:/images/tiles/leverRight.png")
+TEXTURE_GATE_OPEN: Final[arcade.Texture] = _dungeon_grid_archive[13 * 8 + 4]
+TEXTURE_GATE_CLOSED: Final[arcade.Texture] = _dungeon_grid_archive[13 * 8 + 7]

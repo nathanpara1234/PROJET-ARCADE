@@ -3,7 +3,8 @@ import arcade
 
 from constants import TILE_SIZE, SCALE, SPINNER_SPEED
 from enemies import Bat, Blob, SpinnerSprite, compute_horizontal_spinner_limits, compute_vertical_spinner_limits
-from map import Map, GridCell
+from gate_condition import GateCondition
+from map import Map, GridCell, SwitchData, GateData
 
 from textures import (
     TEXTURE_GRASS,
@@ -14,6 +15,10 @@ from textures import (
     ANIMATION_CHEST,
     ANIMATION_SPIKES,
     ANIMATION_SPINNER,
+    TEXTURE_SWITCH_OFF,
+    TEXTURE_SWITCH_ON,
+    TEXTURE_GATE_OPEN,
+    TEXTURE_GATE_CLOSED,
 )
 
 def grid_to_pixels(i: int) -> int:
@@ -41,6 +46,57 @@ def make_tile_animation_sprite(
         center_y=grid_to_pixels(y),
     )
 
+
+
+class SwitchSprite(arcade.Sprite):
+    id: str
+    is_on: bool
+
+    def __init__(self, switch: SwitchData) -> None:
+        texture = TEXTURE_SWITCH_ON if switch.is_on else TEXTURE_SWITCH_OFF
+        super().__init__(
+            texture,
+            scale=0.25,
+            center_x=grid_to_pixels(switch.x),
+            center_y=grid_to_pixels(switch.y),
+        )
+        self.id = switch.id
+        self.is_on = switch.is_on
+
+    def inverse_state_switch(self) -> None:
+        self.is_on = not self.is_on
+        if self.is_on:
+            self.texture = TEXTURE_SWITCH_ON
+        else:
+            self.texture = TEXTURE_SWITCH_OFF
+
+
+class GateSprite(arcade.Sprite):
+    open_if: GateCondition
+    is_open: bool
+
+    def __init__(self, gate: GateData) -> None:
+        super().__init__(
+            TEXTURE_GATE_CLOSED,
+            scale=SCALE,
+            center_x=grid_to_pixels(gate.x),
+            center_y=grid_to_pixels(gate.y),
+        )
+        self.open_if = gate.open_if
+        self.is_open = False
+
+    def set_open(self, is_open: bool) -> None:
+        self.is_open = is_open
+        if self.is_open:
+            self.texture = TEXTURE_GATE_OPEN
+        else:
+            self.texture = TEXTURE_GATE_CLOSED
+
+
+@dataclass
+class InteractionSprites:
+    switches: arcade.SpriteList
+    gates: arcade.SpriteList
 
 
 @dataclass
@@ -174,3 +230,24 @@ def build_world(game_map: Map) -> WorldSprites:
         enemies=enemies,
         all_enemies=all_enemies,
     )
+
+
+def switch_gate_interactions(
+    game_map: Map,
+    walls: arcade.SpriteList,
+) -> InteractionSprites:
+    from interactions import update_gate_states
+
+    switches: arcade.SpriteList = arcade.SpriteList()
+    gates: arcade.SpriteList = arcade.SpriteList()
+
+    for switch_data in game_map.switches:
+        switches.append(SwitchSprite(switch_data))
+
+    for gate_data in game_map.gates:
+        gate = GateSprite(gate_data)
+        gates.append(gate)
+        walls.append(gate)
+
+    update_gate_states(switches, gates, walls)
+    return InteractionSprites(switches=switches, gates=gates)

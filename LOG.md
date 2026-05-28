@@ -13,19 +13,20 @@
 * [x] Ajout des chauves-souris                                      150
 * [x] Refactoring du code                                           180
 * [x] Ajout des blobs                                               180
-* [ ] Ajout des interrupteurs et portails                           240
-* [ ] Travail sur les performances et le benchmark                  180
-* [x] Ajout des extensions cles/coffres et spikes                   180
-* [x] Verifier et completer le README.md                            60
-* [x] Relire les questions de design                                60
-* [x] Corriger les derniers tests                                   120
+* [x] Ajout des interrupteurs et portails                           240
+* [x] Travail sur les performances et le benchmark                  180
+* [x] Ajout des extensions cles/coffres et pics                     180
+* [ ] Verifier et completer le README.md                            60
+* [ ] Relire les questions de design                                60
+* [ ] Corriger les derniers tests                                   120
 
+---
 
 ## A faire (prochaine etape)
 
-* Nicolas : relire le code et finaliser les interrupteurs et les portails
-* Nathan : relire le code et etudier la performance de celui-ci
-* Groupe : Refactoriser le code au besoin et amélioration de fonctions
+* Nicolas : relire la partie boomerang, epee, interrupteurs/portails et pics dans `Design.md`.
+* Nathan : relire la partie monstres, blobs, invincibilite et cles/coffres.
+* Groupe : verifier que `README.md`, `LOG.md` et `Design.md` sont coherents avec le code final.
 
 ---
 
@@ -53,8 +54,10 @@ Nathan et Nicolas ont restructure une partie du code pour mieux separer les resp
 
 ### Semaine 6 - Blobs et interrupteurs
 
-Nathan et Nicolas a ajoute les blobs et leur deplacement avec le navmesh
+Nathan a ajoute les blobs et leur deplacement avec le navmesh. Nicolas a ajoute les interrupteurs et les portails, avec les conditions d'ouverture lues depuis la configuration YAML de la map.
 
 ### Semaine 7 - Performances et extensions
 
-Nathan a travaille sur l'invincibilite et l'extension cles/coffres. Nicolas a ajoute les pics animes avec la case `!`, leur alternance entre etat actif et inactif, ainsi que la collision qui relance la partie quand les pics sont dangereux.
+Nathan a travaille sur l'invincibilite et l'extension cles/coffres. Nicolas a ajoute les pics animes avec la case `!`, leur alternance entre etat actif et inactif, ainsi que la collision qui relance la partie quand les pics sont dangereux. Le groupe a aussi commence a regarder les performances avec le benchmark.
+
+

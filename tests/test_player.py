@@ -1,4 +1,3 @@
-﻿# --- test_player_camera.py ---
 import arcade
 
 from constants import PLAYER_MOVEMENT_SPEED, TILE_SIZE

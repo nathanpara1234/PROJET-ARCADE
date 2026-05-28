@@ -1,4 +1,3 @@
-# --- test_conftest.py ---
 import arcade
 
 from constants import SPIKES_SWITCH_TIME
@@ -6,6 +5,7 @@ from gameview import GameView
 from interactions import update_spikes
 from map import load_map_from_string
 from weapons import BoomerangState
+from world_builder import grid_to_pixels
 
 
 def make_spikes_view(window: arcade.Window) -> GameView:
@@ -116,14 +116,6 @@ def test_spikes_timer_switches_from_inactive_to_active(window: arcade.Window) ->
     assert view.spikes[0].alpha == 255
 
 
-# Test Trou
-import arcade
-
-from gameview import GameView
-from map import load_map_from_string
-from world_builder import grid_to_pixels
-
-
 def test_player_can_walk_between_separated_holes(window: arcade.Window) -> None:
     """Verifie que le joueur peut passer entre deux trous separes par une case"""
     game_map = load_map_from_string(
@@ -147,157 +139,6 @@ xxxxxxx
     assert window.current_view is view
 
 
-def test_sword_opens_gate_by_hitting_switch(window: arcade.Window) -> None:
-    """Verifie que l'epee active un interrupteur et ouvre le portail lie"""
-    game_map = load_map_from_string(
-        """
-        width: 7
-        height: 5
-        switches:
-          - id: first
-            x: 2
-            y: 2
-        gates:
-          - x: 4
-            y: 2
-            open_if:
-              switch_is_on: first
-        ---
-        xxxxxxx
-        x     x
-        x ^ | x
-        x P   x
-        xxxxxxx
-        ---
-        """
-    )
-    view = GameView(game_map)
-    window.show_view(view)
-    switch = view.switches[0]
-    gate = view.gates[0]
-
-    assert not switch.is_on
-    assert not gate.is_open
-    assert gate in view.walls
-
-    view.sword.active = True
-    view.sword.visible = True
-    view.sword.elapsed_time = 0
-    view.sword.center_x = switch.center_x
-    view.sword.center_y = switch.center_y
-    view.do_on_update(1 / 60)
-
-    assert switch.is_on
-    assert gate.is_open
-    assert gate not in view.walls
-
-
-def test_gate_starts_open_when_switch_state_is_on(window: arcade.Window) -> None:
-    """Verifie qu'un portail est ouvert des le debut si sa condition est vraie"""
-    game_map = load_map_from_string(
-        """
-        width: 7
-        height: 5
-        switches:
-          - id: first
-            x: 2
-            y: 2
-            state: on
-        gates:
-          - x: 4
-            y: 2
-            open_if:
-              switch_is_on: first
-        ---
-        xxxxxxx
-        x     x
-        x ^ | x
-        x P   x
-        xxxxxxx
-        ---
-        """
-    )
-    view = GameView(game_map)
-    window.show_view(view)
-    gate = view.gates[0]
-
-    assert gate.is_open
-    assert gate not in view.walls
-
-
-def test_switch_does_not_block_player(window: arcade.Window) -> None:
-    """Verifie qu'un interrupteur n'est pas un mur pour le joueur"""
-    game_map = load_map_from_string(
-        """
-        width: 5
-        height: 5
-        switches:
-          - id: first
-            x: 2
-            y: 2
-        ---
-        xxxxx
-        x   x
-        x ^ x
-        x P x
-        xxxxx
-        ---
-        """
-    )
-    view = GameView(game_map)
-    window.show_view(view)
-    switch = view.switches[0]
-
-    view.player.center_x = switch.center_x
-    view.player.center_y = switch.center_y
-    view.do_on_update(1 / 60)
-
-    assert switch not in view.walls
-    assert window.current_view is view
-
-
-def test_boomerang_returning_can_toggle_switch(window: arcade.Window) -> None:
-    """Verifie que le boomerang active un interrupteur meme au retour"""
-    game_map = load_map_from_string(
-        """
-        width: 7
-        height: 5
-        switches:
-          - id: first
-            x: 2
-            y: 2
-        gates:
-          - x: 4
-            y: 2
-            open_if:
-              switch_is_on: first
-        ---
-        xxxxxxx
-        x     x
-        x ^ | x
-        x P   x
-        xxxxxxx
-        ---
-        """
-    )
-    view = GameView(game_map)
-    window.show_view(view)
-    switch = view.switches[0]
-    gate = view.gates[0]
-
-    view.boomerang.center_x = switch.center_x
-    view.boomerang.center_y = switch.center_y
-    view.boomerang.state = BoomerangState.RETURNING
-    view.boomerang.visible = True
-    view.boomerang.active = True
-    view.do_on_update(1 / 60)
-
-    assert switch.is_on
-    assert gate.is_open
-    assert gate not in view.walls
-    assert view.boomerang.state == BoomerangState.RETURNING
-
-
 def test_player_falls_between_adjacent_holes(window: arcade.Window) -> None:
     """Verifie que le joueur tombe quand il passe entre deux trous colles"""
     game_map = load_map_from_string(
@@ -319,3 +160,121 @@ xxxxxxx
     view.do_on_update(1 / 60)
 
     assert window.current_view is not view
+
+
+def make_switch_gate_view(window: arcade.Window) -> GameView:
+    game_map = load_map_from_string(
+"""width: 7
+height: 5
+switches:
+  - id: first
+    x: 2
+    y: 2
+gates:
+  - x: 4
+    y: 2
+    open_if:
+      switch_is_on: first
+---
+xxxxxxx
+x     x
+x ^ | x
+x P   x
+xxxxxxx
+---"""
+    )
+    view = GameView(game_map)
+    window.show_view(view)
+    return view
+
+
+def test_gate_starts_closed_when_switch_is_off(window: arcade.Window) -> None:
+    """Verifie qu'un portail ferme est dans les murs au depart"""
+    view = make_switch_gate_view(window)
+    gate = view.gates[0]
+
+    assert not gate.is_open
+    assert gate in view.walls
+
+
+def test_gate_starts_open_when_switch_is_on(window: arcade.Window) -> None:
+    """Verifie qu'un portail commence ouvert si sa condition est deja vraie"""
+    game_map = load_map_from_string(
+"""width: 7
+height: 5
+switches:
+  - id: first
+    x: 2
+    y: 2
+    state: on
+gates:
+  - x: 4
+    y: 2
+    open_if:
+      switch_is_on: first
+---
+xxxxxxx
+x     x
+x ^ | x
+x P   x
+xxxxxxx
+---"""
+    )
+    view = GameView(game_map)
+    window.show_view(view)
+    gate = view.gates[0]
+
+    assert gate.is_open
+    assert gate not in view.walls
+
+
+def test_sword_toggles_switch_and_opens_gate(window: arcade.Window) -> None:
+    """Verifie que l'epee active un interrupteur et ouvre son portail"""
+    view = make_switch_gate_view(window)
+    switch = view.switches[0]
+    gate = view.gates[0]
+
+    view.sword.active = True
+    view.sword.visible = True
+    view.sword.elapsed_time = 0
+    view.sword.center_x = switch.center_x
+    view.sword.center_y = switch.center_y
+    view.do_on_update(1 / 60)
+
+    assert switch.is_on
+    assert gate.is_open
+    assert gate not in view.walls
+
+
+def test_boomerang_toggles_switch_and_returns(window: arcade.Window) -> None:
+    """Verifie que le boomerang active un interrupteur et revient"""
+    view = make_switch_gate_view(window)
+    switch = view.switches[0]
+    gate = view.gates[0]
+
+    view.boomerang.center_x = switch.center_x
+    view.boomerang.center_y = switch.center_y
+    view.boomerang.state = BoomerangState.LAUNCHING
+    view.boomerang.visible = True
+    view.boomerang.active = True
+    view.boomerang.change_x = 0
+    view.boomerang.change_y = 0
+    view.do_on_update(1 / 60)
+
+    assert switch.is_on
+    assert gate.is_open
+    assert gate not in view.walls
+    assert view.boomerang.state == BoomerangState.RETURNING
+
+
+def test_switch_does_not_block_player(window: arcade.Window) -> None:
+    """Verifie qu'un interrupteur n'est pas un mur pour le joueur"""
+    view = make_switch_gate_view(window)
+    switch = view.switches[0]
+
+    view.player.center_x = switch.center_x
+    view.player.center_y = switch.center_y
+    view.do_on_update(1 / 60)
+
+    assert switch not in view.walls
+    assert window.current_view is view

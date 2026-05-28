@@ -1,11 +1,10 @@
 from math import sqrt
 import arcade
-from textures import TEXTURE_EMPTY_CHEST
+
 from constants import SPIKES_SWITCH_TIME
-from gate_condition import condition_is_true
+from gate_conditions import condition_is_true
 from player import Player
 from weapons import Boomerang, Sword, BoomerangState
-from text import Text
 
 
 def should_restart_after_collision(
@@ -57,12 +56,13 @@ def should_restart_after_spikes_collision(
         return False
     return bool(arcade.check_for_collision_with_list(player, spikes))
 
+
 def update_gate_states(
     switches: arcade.SpriteList,
     gates: arcade.SpriteList,
     walls: arcade.SpriteList,
 ) -> None:
-    switch_states: dict[str, bool] = {}
+    switch_states = {}
     for switch in switches:
         switch_states[switch.id] = switch.is_on
 
@@ -83,8 +83,14 @@ def inverse_state_switch_hit_switches(
     switches: arcade.SpriteList,
     already_touched: set[str],
 ) -> tuple[set[str], bool]:
+    # On cherche tous les interrupteurs actuellement touches par l'arme
     hit_switches = arcade.check_for_collision_with_list(weapon, switches)
+
+    # On garde seulement leurs ids, pour memoriser quels interrupteurs
     hit_ids = {switch.id for switch in hit_switches}
+
+    # Ce booleen dit si l'arme vient de toucher au moins un nouveau switch
+    # Il sert surtout au boomerang, qui doit revenir apres un nouveau contact
     has_new_hit = False
 
     for switch in hit_switches:
@@ -92,6 +98,8 @@ def inverse_state_switch_hit_switches(
             switch.inverse_state_switch()
             has_new_hit = True
 
+    # On renvoie les ids touches maintenant, et si au moins un nouveau switch
+    # a ete activé
     return (hit_ids, has_new_hit)
 
 
@@ -100,8 +108,12 @@ def update_switches_hit_by_sword(
     sword_touched_switches: set[str],
     switches: arcade.SpriteList,
 ) -> set[str]:
+    # Si l'epee n'est pas active, elle ne peut pas toucher d'interrupteur
     if not sword.active:
         return set()
+
+    # On inverse les interrupteurs touches par l'epee
+    # Le deuxieme resultat n'est pas utilise pour l'épee on l'ignore avec _
     new_touched, _ = inverse_state_switch_hit_switches(sword, switches, sword_touched_switches)
     return new_touched
 
@@ -111,46 +123,19 @@ def update_switches_hit_by_boomerang(
     boomerang_touched_switches: set[str],
     switches: arcade.SpriteList,
 ) -> set[str]:
+    # Si le boomerang est inactif, il n'est pas visible et ne touche rien
     if boomerang.state == BoomerangState.INACTIVE:
         return set()
+
+    # On inverse les interrupteurs touches par le boomerang
+    # has_new_hit indique s'il vient d'activer un nouveau switch.
     (hit_ids, has_new_hit) = inverse_state_switch_hit_switches(boomerang, switches, boomerang_touched_switches)
+
+    # Pendant le lancement, toucher un interrupteur fait revenir le boomerang,
+    # comme quand il touche un mur ou un ennemi
     if has_new_hit and boomerang.state == BoomerangState.LAUNCHING:
         boomerang.start_return()
+
+    # On renvoie les ids touches pour eviter de rebasculer les memes switches
+    # tant que le boomerang reste dessus.
     return hit_ids
-
-
-def update_collectibles(# fonction de collision avec item recuperable
-    player: Player,
-    crystals: arcade.SpriteList,
-    crystal_sound: arcade.Sound,
-    keys: arcade.SpriteList,
-    keys_sound: arcade.Sound,
-    chests: arcade.SpriteList,
-    chests_sound: arcade.Sound,
-    text: Text,
-) -> None:
-    collision_crystals = arcade.check_for_collision_with_list(player, crystals)
-    for crystal in collision_crystals:
-
-        crystal.remove_from_sprite_lists()
-        arcade.play_sound(crystal_sound)
-        player.score += 1
-        text.update_score(player)
-        if player.score >= text.total_crystals:
-            text.show_end()
-
-    collision_keys = arcade.check_for_collision_with_list(player, keys)
-    for key in collision_keys:
-        key.remove_from_sprite_lists()
-        arcade.play_sound(keys_sound)
-        player.key += 1
-        text.update_keys(player)
-
-    collision_chests = arcade.check_for_collision_with_list(player, chests)
-    for chest in collision_chests:
-        if player.key > 0:
-            chest.texture = TEXTURE_EMPTY_CHEST
-            arcade.play_sound(chests_sound)
-            player.key -= 1
-            text.update_keys(player)
-            player.player_become_indestructible()

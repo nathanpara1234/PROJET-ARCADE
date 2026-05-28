@@ -1,13 +1,11 @@
-# --- test_bats.py ---
 import random
 from math import sqrt
-from textwrap import dedent
 
 import arcade
 import networkx as nx
 
 from gameview import GameView
-from map import load_map_from_string, GridCell
+from map import load_map_from_string
 from weapons import BoomerangState
 from enemies import (
     Bat,
@@ -17,9 +15,6 @@ from enemies import (
 )
 from constants import TILE_SIZE, BAT_MOUVEMENT_SPEED, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT
 
-# Map minimale avec une seule chauve-souris et un joueur.
-# Bat  à  la case (7, 5)
-# Player à  la case (7, 1) assez loin pour ne pas déclencher de collision immédiat
 MAP_TEXT = """width: 15
 height: 10
 ---
@@ -38,8 +33,6 @@ xxxxxxxxxxxxxxx
 BAT_START_X = 7 * TILE_SIZE + TILE_SIZE // 2
 BAT_START_Y = 5 * TILE_SIZE + TILE_SIZE // 2
 
-
-#  Tests unitaires (sans fenetre)
 
 def test_valid_pos_inside_field() -> None:
     """valid_pos retourne True pour toute position dans le champ d'action."""
@@ -90,7 +83,6 @@ def test_bat_moves_at_constant_speed() -> None:
     dx = bat.center_x - x_before
     dy = bat.center_y - y_before
 
-    # Le bat démarre loin des bords et il se déplace forcément (pas de demi-tour)
     assert dx != 0 or dy != 0
     distance = sqrt(dx**2 + dy**2)
     assert abs(distance - BAT_MOUVEMENT_SPEED) < 0.01
@@ -129,7 +121,6 @@ def test_bat_killed_by_boomerang(window: arcade.Window) -> None:
 
     bat = view.enemies[0]
 
-    # Positionner le boomerang sur la chauve-souris et le mettre en vol
     view.boomerang.center_x = bat.center_x
     view.boomerang.center_y = bat.center_y
     view.boomerang.state = BoomerangState.LAUNCHING
@@ -151,7 +142,6 @@ def test_bat_killed_by_sword(window: arcade.Window) -> None:
 
     bat = view.enemies[0]
 
-    # Positionner l'épee sur la chauve-souris et l'activer
     view.sword.active = True
     view.sword.visible = True
     view.sword.elapsed_time = 0
@@ -162,8 +152,6 @@ def test_bat_killed_by_sword(window: arcade.Window) -> None:
     view.do_on_update(1 / 60)
     assert len(view.enemies) == initial_count - 1
 
-
-# Tests des blobs
 
 MAP_TEXT_BLOB = """width: 15
 height: 10
@@ -183,8 +171,6 @@ xxxxxxxxxxxxxxx
 BLOB_START_X = 7 * TILE_SIZE + TILE_SIZE // 2
 BLOB_START_Y = 5 * TILE_SIZE + TILE_SIZE // 2
 
-
-# Tests unitaires
 
 def test_blob_initial_state() -> None:
     """Un blob démarre avec un chemin vide et un index à 0"""
@@ -264,8 +250,6 @@ def test_blob_chases_player_when_visible(window: arcade.Window) -> None:
 
     blob = view.enemies[0]
 
-    # Le joueur est placé juste au-dessus du blob, sans mur entre eux,
-    # à moins de 5 cases : le blob doit le voir et le pourchasser.
     view.player.center_x = blob.center_x
     view.player.center_y = blob.center_y + 3 * TILE_SIZE
 
@@ -336,8 +320,6 @@ xxxxxxxxx
 
     assert not arcade.has_line_of_sight(blob.position, view.player.position, view.walls)
 
-
-# Test Spinner
 
 MAP_TEXT_SPINNER = """width: 7
 height: 5

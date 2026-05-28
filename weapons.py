@@ -11,9 +11,11 @@ from textures import (
 )
 from player import Direction, Player
 
+
 class WeaponType(Enum):
     BOOMERANG = auto()
     SWORD = auto()
+
 
 class Weapon(arcade.TextureAnimationSprite):
     active: bool

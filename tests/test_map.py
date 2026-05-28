@@ -1,6 +1,8 @@
-# --- test_map_parser.py ---
+import networkx as nx
 import pytest
 
+from constants import NAVMESH_DENSITY, TILE_SIZE
+from gate_conditions import condition_is_true
 from map import GridCell, InvalidMapFileException, load_map_from_string
 
 
@@ -78,10 +80,6 @@ xxx
         )
 
 
-# --- test_trou.py ---
-from map import GridCell, load_map_from_string
-
-
 def test_map_reads_separated_holes() -> None:
     """Verifie que deux trous separes sont lus aux bonnes coordonnees"""
     text = """width: 7
@@ -116,14 +114,6 @@ xxxxxxx
 
     assert game_map.get(2, 2) == GridCell.HOLE
     assert game_map.get(3, 2) == GridCell.HOLE
-
-
-# Test Navmesh
-
-import networkx as nx
-
-from constants import NAVMESH_DENSITY, TILE_SIZE
-from map import GridCell, load_map_from_string
 
 
 MAP_SIMPLE = """width: 5
@@ -431,3 +421,126 @@ xxxxx
     )
 
     assert game_map.get(2, 3) == GridCell.SPIKES
+
+
+def test_gate_condition_and_not_is_evaluated_without_arcade() -> None:
+    """Verifie une condition de portail and/not sans creer de fenetre Arcade"""
+    condition = {
+        "and": [
+            {"switch_is_on": "first"},
+            {"not": [{"switch_is_on": "second"}]},
+        ]
+    }
+
+    assert condition_is_true(condition, {"first": True, "second": False})
+    assert not condition_is_true(condition, {"first": True, "second": True})
+
+
+def test_gate_condition_or_is_evaluated_without_arcade() -> None:
+    """Verifie une condition de portail or sans creer de fenetre Arcade"""
+    condition = {
+        "or": [
+            {"switch_is_on": "first"},
+            {"switch_is_on": "second"},
+        ]
+    }
+
+    assert condition_is_true(condition, {"first": False, "second": True})
+    assert not condition_is_true(condition, {"first": False, "second": False})
+
+
+def test_map_loads_switches_and_gates_from_yaml() -> None:
+    """Verifie que le YAML charge les interrupteurs et les portails"""
+    game_map = load_map_from_string(
+"""width: 7
+height: 5
+switches:
+  - id: first
+    x: 2
+    y: 2
+    state: on
+gates:
+  - x: 4
+    y: 2
+    open_if:
+      switch_is_on: first
+---
+xxxxxxx
+x     x
+x ^ | x
+x P   x
+xxxxxxx
+---"""
+    )
+
+    assert game_map.get(2, 2) == GridCell.SWITCH
+    assert game_map.get(4, 2) == GridCell.GATE
+    assert game_map.switches[0].id == "first"
+    assert game_map.switches[0].is_on
+    assert game_map.gates[0].open_if == {"switch_is_on": "first"}
+
+
+def test_switch_is_off_by_default() -> None:
+    """Verifie qu'un interrupteur sans state commence eteint"""
+    game_map = load_map_from_string(
+"""width: 5
+height: 3
+switches:
+  - id: first
+    x: 1
+    y: 1
+---
+xxxxx
+x^  x
+xPxxx
+---"""
+    )
+
+    assert not game_map.switches[0].is_on
+
+
+def test_gate_with_unknown_switch_is_invalid() -> None:
+    """Verifie qu'un portail ne peut pas utiliser un interrupteur inconnu"""
+    with pytest.raises(InvalidMapFileException):
+        load_map_from_string(
+"""width: 5
+height: 3
+gates:
+  - x: 3
+    y: 1
+    open_if:
+      switch_is_on: missing
+---
+xxxxx
+x  |x
+xPxxx
+---"""
+        )
+
+
+def test_switch_character_needs_yaml_configuration() -> None:
+    """Verifie qu'un caractere ^ doit avoir une configuration YAML"""
+    with pytest.raises(InvalidMapFileException):
+        load_map_from_string(
+"""width: 5
+height: 3
+---
+xxxxx
+x^  x
+xPxxx
+---"""
+        )
+
+
+def test_gate_character_needs_yaml_configuration() -> None:
+    """Verifie qu'un caractere | doit avoir une configuration YAML"""
+    with pytest.raises(InvalidMapFileException):
+        load_map_from_string(
+"""width: 5
+height: 3
+---
+xxxxx
+x | x
+xPxxx
+---"""
+        )

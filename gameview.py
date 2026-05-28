@@ -1,19 +1,17 @@
 import cProfile
 import arcade
 from text import Text
-from systems import update_camera_position, update_enemies
+from world_builder import GateSprite, SwitchSprite, build_world, grid_to_pixels, switch_gate_interactions
+from systems import update_camera_position, update_enemies, update_collectibles
 from enemies import Enemy, SpinnerSprite, Blob
 from constants import TILE_SIZE, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, DRAW_NAVMESHES
 from player import Player
-from weapons import Boomerang, Sword
+from weapons import Boomerang, Sword, WeaponType
 from map import Map
-from world_builder import build_world, grid_to_pixels, switch_gate_interactions
-from weapons import WeaponType
 from interactions import (
     should_restart_after_collision,
     update_spikes,
     should_restart_after_spikes_collision,
-    update_collectibles,
     update_gate_states,
     update_switches_hit_by_sword,
     update_switches_hit_by_boomerang,
@@ -29,8 +27,8 @@ class GameView(arcade.View):
     spinners: arcade.SpriteList[SpinnerSprite]
     player_list: arcade.SpriteList[arcade.TextureAnimationSprite]
     holes: arcade.SpriteList[arcade.Sprite]
-    switches: arcade.SpriteList
-    gates: arcade.SpriteList
+    switches: arcade.SpriteList[SwitchSprite]
+    gates: arcade.SpriteList[GateSprite]
     physics_engine: arcade.PhysicsEngineSimple
     camera: arcade.camera.Camera2D
     text : Text
@@ -44,11 +42,11 @@ class GameView(arcade.View):
     enemies: arcade.SpriteList[Enemy]
     all_enemies: arcade.SpriteList
     player: Player
+    sword_touched_switches: set[str]
+    boomerang_touched_switches: set[str]
     profiler: cProfile.Profile
     spikes_are_active: bool
     spikes_timer: float
-    sword_touched_switches: set[str]
-    boomerang_touched_switches: set[str]
 
     def __init__(self, map: Map) -> None:
         super().__init__()
@@ -65,6 +63,8 @@ class GameView(arcade.View):
         self.world_height = map.height * TILE_SIZE
         self.spikes_are_active = True
         self.spikes_timer = 0.0
+        self.sword_touched_switches = set()
+        self.boomerang_touched_switches = set()
         self.boomerang_list = arcade.SpriteList()
         self.boomerang = Boomerang()
         self.boomerang_list.append(self.boomerang)
@@ -82,11 +82,9 @@ class GameView(arcade.View):
         self.enemies = world.enemies
         self.all_enemies = world.all_enemies
 
-        interaction = switch_gate_interactions(self.map, self.walls)
-        self.switches = interaction.switches
-        self.gates = interaction.gates
-        self.sword_touched_switches: set[str] = set()
-        self.boomerang_touched_switches: set[str] = set()
+        interactions = switch_gate_interactions(self.map, self.walls)
+        self.switches = interactions.switches
+        self.gates = interactions.gates
 
         # on initialise le joueur à sa position de départ
         self.player = Player(grid_to_pixels(map.player_start_x),grid_to_pixels(map.player_start_y),)
@@ -105,7 +103,7 @@ class GameView(arcade.View):
 
 
     def on_show_view(self) -> None:
-        # Ajuste la taille de la fenetre à  la taille du monde,
+        # Ajuste la taille de la fenetre à  la taille du monde,
         # sans dépasser les dimensions maximales autorisées
         self.window.width = min(MAX_WINDOW_WIDTH, self.world_width)
         self.window.height = min(MAX_WINDOW_HEIGHT, self.world_height)
@@ -116,9 +114,10 @@ class GameView(arcade.View):
         with self.camera.activate():
             self.grounds.draw()
             self.walls.draw()
+            self.holes.draw()
+            # Les portails et interrupteurs sont dessines comme les autres sprites.
             self.gates.draw()
             self.switches.draw()
-            self.holes.draw()
             self.crystals.draw()
             self.keys.draw()
             self.chests.draw()
@@ -168,14 +167,11 @@ class GameView(arcade.View):
         self.enemies.update_animation()
         self.boomerang.update_animation()
         self.boomerang.update_boomerang(self.player, self.walls, self.all_enemies)
-        self.boomerang_touched_switches = update_switches_hit_by_boomerang(
-            self.boomerang, self.boomerang_touched_switches, self.switches
-        )
         self.sword.update_animation()
         self.sword.update_sword(delta_time,self.all_enemies,self.crystals,self.player,self.crystal_sound)
-        self.sword_touched_switches = update_switches_hit_by_sword(
-            self.sword, self.sword_touched_switches, self.switches
-        )
+        self.boomerang_touched_switches = update_switches_hit_by_boomerang(self.boomerang, self.boomerang_touched_switches, self.switches)
+        self.sword_touched_switches = update_switches_hit_by_sword(self.sword, self.sword_touched_switches, self.switches)
+        # Apres les collisions avec les armes, les portails peuvent avoir change.
         update_gate_states(self.switches, self.gates, self.walls)
         update_enemies(self.spinners, self.enemies, self.player, self.walls, self.map.navmesh)
         update_collectibles(self.player, self.crystals, self.crystal_sound, self.keys, self.keys_sound, self.chests, self.chests_sound, self.text)
@@ -207,7 +203,6 @@ class GameView(arcade.View):
         self.player.player_move()# recalcule le mouvement du joueur après une touche présse
 
 
-
     def on_key_release(self, symbol: int, modifiers: int) -> None:
         match symbol:
             case arcade.key.UP:
@@ -218,4 +213,5 @@ class GameView(arcade.View):
                 self.player.left_pressed = False
             case arcade.key.RIGHT:
                 self.player.right_pressed = False
+
         self.player.player_move()

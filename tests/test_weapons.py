@@ -1,12 +1,10 @@
-# --- test_weapons_gameplay.py ---
 import arcade
 
 from constants import BOOMERANG_MAX_DISTANCE
 from gameview import GameView
 from map import load_map_from_string
 from player import Direction
-from weapons import WeaponType
-from weapons import BoomerangState
+from weapons import BoomerangState, WeaponType
 
 
 def make_weapon_view(window: arcade.Window) -> GameView:

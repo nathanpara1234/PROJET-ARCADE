@@ -9,7 +9,6 @@ from text import Text
 from weapons import Sword
 
 
-# clamp la position de la caméra pour rester dans la map
 def clamp_camera(pos: float, window_size: float, world_size: float) -> float:
     min_camera = window_size / 2
     max_camera = world_size - window_size / 2
@@ -20,7 +19,6 @@ def clamp_camera(pos: float, window_size: float, world_size: float) -> float:
     return pos
 
 
-# déplace la caméra pour suivre le joueur
 def update_camera_position(
     camera: arcade.camera.Camera2D,
     player: Player,
@@ -34,7 +32,6 @@ def update_camera_position(
     )
 
 
-# deplace les ennemis
 def update_enemies(
     spinners: arcade.SpriteList,
     enemies: arcade.SpriteList,
@@ -54,7 +51,6 @@ def update_enemies(
             enemy.move(navmesh, None)
 
 
-# collecte des items quand le joueur marche dessus ou les frappe avec l'épée
 def update_collectibles(
     player: Player,
     sword: Sword,

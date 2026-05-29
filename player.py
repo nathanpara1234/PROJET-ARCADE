@@ -25,7 +25,6 @@ class Player(arcade.TextureAnimationSprite):
     __indestructibility_timer: int
 
     def __init__(self, start_x: int, start_y: int) -> None:
-        # On initialise le sprite animé avec l'animation idle vers le bas
         super().__init__(
             animation=ANIMATION_PLAYER_IDLE_DOWN,
             scale=SCALE,
@@ -58,7 +57,6 @@ class Player(arcade.TextureAnimationSprite):
             self.change_y = PLAYER_MOVEMENT_SPEED
         elif self.down_pressed and not self.up_pressed:
             self.change_y = -PLAYER_MOVEMENT_SPEED
-        # On associe chaque touche à une direction
         if self.down_pressed:
             self.direction = Direction.SOUTH
         elif self.up_pressed:
@@ -90,7 +88,6 @@ class Player(arcade.TextureAnimationSprite):
         self.__indestructibility_timer = INDESTRUCTIBILITY_DURATION
 
     def update_invincibility(self) -> None:
-        # si le joueur est invincible on réduit le timer, et quand il tombe à 0 on enlève l'invincibilité
         if not self.__indestructible:
             return
         self.__indestructibility_timer -= 1

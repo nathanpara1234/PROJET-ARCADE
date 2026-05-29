@@ -32,7 +32,6 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         self.change_y = 0 if is_horizontal else SPINNER_SPEED
 
     def bounce(self, pos: float, speed: float) -> tuple[float, float]:
-        # demi tour si le spinner atteint une limite, sinon il continu
         if pos >= self.max_pos:
             return (self.max_pos, -SPINNER_SPEED)
         elif pos <= self.min_pos:
@@ -40,7 +39,6 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         return (pos, speed)
 
     def spinner_move(self) -> None:
-        # deplace le spinner puis verifie s'il doit faire demi tour
         self.center_x += self.change_x
         self.center_y += self.change_y
 
@@ -98,22 +96,18 @@ class Bat(Enemy):
     def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
 
         condition_move = random.uniform(0, 100)
-        #on choisit un nombre aléatoirement entre 0 et 100
-        # et on fais changer la bat de direction que si le nombre est inférieur à 2
-        # ce qui fait que la bat change de direction à BAT_FRAQUENCY_MODIF_DIRECTION% des frames
+        # la bat change de direction à BAT_FRAQUENCY_MODIF_DIRECTION% des frames
         if condition_move < BAT_FRAQUENCY_MODIF_DIRECTION:
             self.direction = random.uniform(self.direction - 30, self.direction + 30)
 
-        #on fait avancé la bat que si la prochaine frame la bat est encore à l'intérieur de la zone
         next_x = self.center_x + BAT_MOUVEMENT_SPEED * cos((self.direction * math.pi) / 180)
         next_y = self.center_y + BAT_MOUVEMENT_SPEED * sin((self.direction * math.pi) / 180)
 
         if self.valid_pos(next_x, next_y):
             self.center_x = next_x
             self.center_y = next_y
-        # si la bat est hors de la zone à la frame suivante, elle fait demi tour
         else:
-            self.direction = (self.direction + random.uniform(135, 225)) % 360# definit langle de deviation du bat
+            self.direction = (self.direction + random.uniform(135, 225)) % 360
 
 class Blob(Enemy):
     """Ennemi qui suit le joueur via Dijkstra sur le navmesh quand il le voit, sinon erre aléatoirement."""
@@ -130,7 +124,6 @@ class Blob(Enemy):
         self.path = []
         self.i = 0
     @staticmethod
-    # calcul le noeud du graphe le plus proche d'un point
     def closest_node (G : nx.Graph, x: float, y : float) -> tuple[float, float] :
         all_nodes = list(G.nodes)
         return min(all_nodes,  key=lambda n: (n[0] - x)**2 + (n[1] - y)**2)
@@ -149,20 +142,17 @@ class Blob(Enemy):
         limit = BLOB_ZONE_WIDTH
         all_nodes = list(G.nodes)
 
-        #donne le noeud le plus proche du blob afin de creer le chemin
         pos_blob = self.closest_node (G, self.center_x, self.center_y)
         composante = nx.node_connected_component(G, pos_blob)
 
         while not path_found:
             if target_player is not None:
-                #prend les coordonées du player si il est dans la zone de vision du blob
                 self.target_x = target_player[0]
                 self.target_y = target_player[1]
             else:
-                self.target_x = self.random_axis(self.start_x, limit, self.world_width)   #coord x au hasard
-                self.target_y = self.random_axis(self.start_y, limit, self.world_height)  #coord y au hasard
+                self.target_x = self.random_axis(self.start_x, limit, self.world_width)
+                self.target_y = self.random_axis(self.start_y, limit, self.world_height)
 
-            # donne le noeud le plus proche de la cible
             pos_target = self.closest_node(G, self.target_x, self.target_y)
 
             if pos_target in composante:
@@ -179,7 +169,6 @@ class Blob(Enemy):
                     break
 
     def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
-        # si on n'a pas de chemin
         if self.i >= len(self.path):
             self.new_target(navmesh, None)
             return
@@ -193,19 +182,15 @@ class Blob(Enemy):
 
         if distance_minimale < 2:  # On est arrivé au point intermédiaire
             if player_pos is not None:
-                # si le jouuer est dans la zone, on calcule une nouvelle position
                 self.new_target(navmesh, player_pos)
-                # on met self.i = 1 dans new_target pour ne pas revenir sur ce noeud
+                # i=1 pour ne pas revenir immédiatement sur le noeud qu'on vient de quitter
                 self.i = 1
             else:
-
                 if self.i >= len(self.path) - 1:
-                    # à la cible, on en cherche une nouvelle cible aléatoire
                     self.new_target(navmesh, None)
                 else:
-                    #  sinon on passe simplement au point suivant
                     self.i += 1
-            return # on s'arrête là pour cette frame pour éviter de bouger deux fois
+            return  # on s'arrête là pour cette frame pour éviter de bouger deux fois
 
         # avance (seulement si on n'est pas sur un noeud)
         cos_move = distance_x / distance_minimale

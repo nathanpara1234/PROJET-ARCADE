@@ -100,6 +100,7 @@ class Bat(Enemy):
         if condition_move < BAT_FRAQUENCY_MODIF_DIRECTION:
             self.direction = random.uniform(self.direction - 30, self.direction + 30)
 
+        # on vérifie la prochaine position avant de bouger pour ne pas sortir de la zone
         next_x = self.center_x + BAT_MOUVEMENT_SPEED * cos((self.direction * math.pi) / 180)
         next_y = self.center_y + BAT_MOUVEMENT_SPEED * sin((self.direction * math.pi) / 180)
 
@@ -180,7 +181,7 @@ class Blob(Enemy):
         distance_y = intermediaire_target_y - self.center_y
         distance_minimale = (sqrt(distance_x**2 + distance_y**2))
 
-        if distance_minimale < 2:  # On est arrivé au point intermédiaire
+        if distance_minimale < 2:  # noeud intermédiaire atteint
             if player_pos is not None:
                 self.new_target(navmesh, player_pos)
                 # i=1 pour ne pas revenir immédiatement sur le noeud qu'on vient de quitter

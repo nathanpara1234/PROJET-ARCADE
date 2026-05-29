@@ -116,11 +116,9 @@ class Boomerang(Weapon):
             self.center_y += self.change_y
             self.__travelled_distance += sqrt(self.change_x**2 + self.change_y**2)
             self.kill_enemies(enemies)
+            # mur ou distance max → retour
             hit_walls = arcade.check_for_collision_with_list(self, walls)
-            if hit_walls:
-                self.start_return()
-                return
-            if self.__travelled_distance >= self.max_distance:
+            if hit_walls or self.__travelled_distance >= self.max_distance:
                 self.start_return()
                 return
 
@@ -131,7 +129,7 @@ class Boomerang(Weapon):
             if distance_to_player <= 12:
                 self.desactivate()
                 return
-
+            # on normalise le vecteur pour avancer à vitesse constante
             direction_x = dx / distance_to_player
             direction_y = dy / distance_to_player
             self.center_x += direction_x * self.speed

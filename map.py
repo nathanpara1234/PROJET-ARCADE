@@ -40,13 +40,13 @@ class SwitchData:# un interrupteur a des paramètres qui varient
     is_on: bool
 
 @dataclass(frozen=True)
-class GateData:
+class GateData: # portail avec sa position et sa condition d'ouverture
     x: int
     y: int
-    open_if: GateCondition#dictionnaire YAML
+    open_if: GateCondition
 
 @dataclass(frozen=True)
-class Map:
+class Map: # dataclass immuable qui représente une carte chargée, indépendante d'Arcade
     #dimension de la map
     width: int
     height: int

@@ -7,6 +7,7 @@ from player import Player
 from weapons import Boomerang, Sword, BoomerangState
 
 
+# renvoie True si le joueur doit recommencer la salle
 def should_restart_after_collision(
     player: Player,
     enemies: arcade.SpriteList,
@@ -15,10 +16,12 @@ def should_restart_after_collision(
     if arcade.check_for_collision_with_list(player, enemies) and not player.indestructible:
         return True
     elif player.indestructible:
+        # joueur invincible : on supprime les ennemis touchés
         for enemy in arcade.check_for_collision_with_list(player, enemies):
             enemy.remove_from_sprite_lists()
 
     for hole in holes:
+        # on regarde si le joueur est trop proche d'un trou
         distance = sqrt((player.center_x - hole.center_x) ** 2 + (player.center_y - hole.center_y) ** 2)
         if distance <= 16:
             return True
@@ -26,6 +29,7 @@ def should_restart_after_collision(
     return False
 
 
+# gère l'état des piques (actives/inactives) en fonction du timer
 def update_spikes(
     spikes: arcade.SpriteList,
     spikes_timer: float,
@@ -42,21 +46,23 @@ def update_spikes(
             if spikes_are_active:
                  spike.alpha = 255
             else:
-                 spike.alpha = 100
+                 spike.alpha = 100  # on les rend transparents quand inactifs
 
     return (spikes_timer, spikes_are_active)
 
 
+# True si le joueur touche des piques actives
 def should_restart_after_spikes_collision(
     spikes_are_active: bool,
     player: Player,
     spikes: arcade.SpriteList,
 ) -> bool:
-    if not spikes_are_active:
+    if not spikes_are_active or player.indestructible:
         return False
     return bool(arcade.check_for_collision_with_list(player, spikes))
 
 
+# Met à jour l'état des portes en fonction des interrupteurs
 def update_gate_states(
     switches: arcade.SpriteList,
     gates: arcade.SpriteList,
@@ -68,12 +74,14 @@ def update_gate_states(
 
     for gate in gates:
         gate_should_be_open = condition_is_true(gate.open_if, switch_states)
-        gate.set_open(gate_should_be_open)
+        gate.is_open = gate_should_be_open
 
         if gate.is_open:
+            # porte ouverte : retire du mur pour laisser passer le joueur
             if gate in walls:
                 walls.remove(gate)
         else:
+            # porte fermee : ajoute aux murs pour bloquer le joueur
             if gate not in walls:
                 walls.append(gate)
 
@@ -83,23 +91,18 @@ def inverse_state_switch_hit_switches(
     switches: arcade.SpriteList,
     already_touched: set[str],
 ) -> tuple[set[str], bool]:
-    # On cherche tous les interrupteurs actuellement touches par l'arme
     hit_switches = arcade.check_for_collision_with_list(weapon, switches)
-
-    # On garde seulement leurs ids, pour memoriser quels interrupteurs
+    # on récupère les ids des switches touchés pour savoir lesquels étaient déjà actifs
     hit_ids = {switch.id for switch in hit_switches}
-
-    # Ce booleen dit si l'arme vient de toucher au moins un nouveau switch
-    # Il sert surtout au boomerang, qui doit revenir apres un nouveau contact
     has_new_hit = False
 
     for switch in hit_switches:
+        # on inverse seulement si le switch n'était pas déjà touché à la frame précédente
         if switch.id not in already_touched:
             switch.inverse_state_switch()
             has_new_hit = True
 
-    # On renvoie les ids touches maintenant, et si au moins un nouveau switch
-    # a ete activé
+    # has_new_hit permet au boomerang de savoir s'il doit revenir
     return (hit_ids, has_new_hit)
 
 
@@ -113,9 +116,9 @@ def update_switches_hit_by_sword(
         return set()
 
     # On inverse les interrupteurs touches par l'epee
-    # Le deuxieme resultat n'est pas utilise pour l'épee on l'ignore avec _
-    new_touched, _ = inverse_state_switch_hit_switches(sword, switches, sword_touched_switches)
-    return new_touched
+    # le deuxieme resultat (has_new_hit) n'est pas utilisé pour l'épée
+    result = inverse_state_switch_hit_switches(sword, switches, sword_touched_switches)
+    return result[0]
 
 
 def update_switches_hit_by_boomerang(
@@ -132,10 +135,10 @@ def update_switches_hit_by_boomerang(
     (hit_ids, has_new_hit) = inverse_state_switch_hit_switches(boomerang, switches, boomerang_touched_switches)
 
     # Pendant le lancement, toucher un interrupteur fait revenir le boomerang,
-    # comme quand il touche un mur ou un ennemi
+    # comme pour les murs
     if has_new_hit and boomerang.state == BoomerangState.LAUNCHING:
         boomerang.start_return()
 
     # On renvoie les ids touches pour eviter de rebasculer les memes switches
-    # tant que le boomerang reste dessus.
+    # tant que le boomerang reste dessus
     return hit_ids

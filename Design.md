@@ -1,217 +1,195 @@
-# 1) Question de design : Player
+Structure générale du projet
 
-## Comment définissez-vous le type Direction, et pourquoi ?
+- La classe GameView est le point central du jeu, elle possède un Player, un Boomerang, une Sword, un WorldSprites et un InteractionSprites. Elle permet au jeu de s'actualiser et de fonctionner à chaque frame (on a séparer les fonctions du gameview en plusieurs fichier pour que le code soit plus lisible (en rassemblant les fonctions qui font une action proche)) :
 
-`Direction` est défini dans `player.py` avec une énumération `Enum`. Elle contient les quatre directions possibles du joueur : `NORTH`, `SOUTH`, `EAST` et `WEST`.
+- world_builder.py crée tous les sprites à partir de Map (WorldSprites, InteractionSprites, SwitchSprite, GateSprite) et calcule les bornes de déplacement des spinners. (fonction à effectué à l'ouverture du jeu, plus jamais rappelées)
 
-Ce choix permet d'éviter d'utiliser des chaînes de caractères comme `"north"` ou des nombres directement dans le code. Avec une énumération, les valeurs possibles sont limitées et plus lisibles. Par exemple, `Direction.SOUTH` est plus clair que `2` ou `"south"`. Cela aide aussi les vérifications de types, car une direction ne peut être qu'une des quatre valeurs prévues.
+- systems.py regroupe les fonctions appelées par GameView à chaque frame : déplacement de la caméra, mise à jour des ennemis, collecte des items
 
-La classe `Player` possède un attribut `direction`, initialisé à `Direction.SOUTH`. Cette direction sert à choisir les animations du joueur dans `textures.py`, mais aussi à orienter les attaques dans `weapons.py`. Ainsi, `GameView` ne manipule pas directement des noms de fichiers ou des coordonnées pour savoir où le joueur regarde : elle demande au joueur son état, puis les armes utilisent cet état.
+- text.py gère l'affichage de l'ui (score, clés).
 
-Le fichier `player.py` est donc responsable de l'état du joueur : position, touches pressées, direction, score, clés et invincibilité temporaire. `GameView`, de son côté, reste le point de contact avec Arcade : elle reçoit les événements clavier, appelle les méthodes du joueur, et coordonne les autres systèmes.
+WorldSprites regroupe toutes les sprite lists du monde (sols, murs, ennemis, objets collectibles). C'est une dataclass simple qui sert juste à rassembler les sprites. InteractionSprites regroupe les SwitchSprite et GateSprite, les deux éléments du système interrupteur/portail.- La logique des conditions de portail est isolée dans gate_conditions.py(condition_is_true), et les collisions/interactions dans interactions.py. Ces deux modules n'importent pas Arcade, ce qui les rend testables sans fenêtre.
 
 
-## Ces méthodes reçoivent-elles n’importe quel symbol: int, comme dans on_key_press, ou reçoivent-elles un type de données plus spécifique ? Pourquoi ce choix ?
+- Tous les ennemies sont regroupés dans un seul fichier ennemies.py. Les ennemis à mouvement complexe Bat et Blob héritent de la classe abstraite Enemy et sont stockés dans WorldSprites.enemies. SpinnerSprite n'hérite pas de Enemy : son déplacement est identique à chaque frame et ne dépend ni du joueur ni du navmesh.
 
-Dans mon implémentation, la méthode `player_move` de la classe `Player` ne reçoit pas directement le `symbol: int` de Arcade. Les touches sont traitées dans `GameView`, dans `on_key_press` et `on_key_release`, puis elles mettent à jour des booléens du joueur comme `up_pressed`, `down_pressed`, `left_pressed` et `right_pressed`.
+- Les armes ont également été regroupée dans un fichier unique. Boomerang et Sword héritent toutes les deux de Weapon, qui fournit les comportements communs (desactivate, kill_enemies).
 
-Ensuite, `player_move` utilise seulement ces booléens pour calculer `change_x`, `change_y` et mettre à jour la direction du joueur. Ce choix sépare mieux les responsabilités : `GameView` s'occupe des événements Arcade, tandis que `Player` s'occupe seulement de son mouvement.
+- La Map est une dataclass immuable, construite une seule fois au chargement et indépendante d'Arcade. Elle contient la grille, le navmesh, les données des interrupteurs et des portails. Elle est stockée dans un fichier map.py.
 
-Cette séparation rend aussi le comportement plus simple à tester et à comprendre. Par exemple, si deux touches opposées sont pressées, le joueur peut regarder l'état complet des booléens au lieu de réagir seulement à la dernière touche reçue. Cela évite les bugs classiques où le joueur s'arrête alors qu'une autre touche est encore enfoncée.
 
-# 2) Question de design : Trou
-## Comment gérez-vous les trous dans la map et la collision avec le joueur ?
 
-Les trous sont représentés dans `map.py` par la valeur `GridCell.HOLE`. Lors du chargement de la map, le caractère `O` est transformé en case `HOLE`. Le module `map.py` ne crée pas de sprites Arcade : il décrit seulement la carte sous forme abstraite avec une grille de `GridCell`.
 
-Ensuite, `world_builder.py` lit cette `Map` et crée les sprites correspondants. Chaque trou devient un sprite ajouté dans la liste `holes`. Les trous ne sont pas ajoutés à `walls`, car le joueur doit pouvoir marcher dessus. C'est important : un trou n'est pas un mur, c'est une case dangereuse.
 
-À chaque frame, `GameView.do_on_update` appelle `should_restart_after_collision` dans `interactions.py`. Cette fonction vérifie les collisions avec les ennemis, puis calcule la distance entre le joueur et chaque trou. Si le joueur est à une distance inférieure ou égale à 16 pixels du centre d'un trou, `GameView` redémarre la partie avec la méthode `restart`.
+PARTIE QUESTION DE DESIGN :
 
-La responsabilité est donc découpée ainsi : `map.py` reconnaît les trous dans le fichier texte, `world_builder.py` construit les sprites, `interactions.py` décide si le joueur doit mourir, et `GameView` applique la conséquence en relançant la vue.
 
-# 3) Question de design : Boomerang
+1) a) Question de design : PlayerComment définissez-vous le type Direction, et pourquoi ?
 
-## Avez-vous défini une classe séparée pour gérer le boomerang, et si oui, étend-elle une classe de sprite ? Pourquoi ?
+Pour gérer l'orientation du joueur, nous utilisons une énumération (Enum) nommée Direction dans le fichier player.py. Elle contient les quatre directions cardinales : NORTH, SOUTH, EAST et WEST.Ce choix permet de rendre le code beaucoup plus propre et d'éviter les erreurs. À la place de chaînes de caractères (comme "north") ou de nombres (comme 2), l'énumération limite les choix possibles aux quatre directions. Dans le code, écrire Direction.SOUTH est plus lisible et plus sûr que d'utiliser une valeur brute. La classe Player possède un attribut direction (initialisé à Direction.SOUTH) qui sert ensuite à afficher les bonnes animations et à orienter les attaques, comme le lancer du boomerang ou le coup d'épée.
 
-`Boomerang` est une classe séparée définie dans `weapons.py`. Elle hérite de `Weapon`, qui hérite elle-même de `arcade.TextureAnimationSprite`. Le boomerang est donc un sprite animé Arcade, comme les autres éléments visibles du jeu.
+b) Ces méthodes reçoivent-elles n’importe quel symbol: int, comme dans on_key_press, ou reçoivent-elles un type de données plus spécifique ? Pourquoi ce choix ?
 
-C'est pratique car le boomerang a besoin d'une position, d'une animation, d'une visibilité, d'un déplacement et de collisions. Toute la logique propre au boomerang est regroupée dans sa classe : lancement, retour, vitesse, distance maximale et collisions avec les ennemis ou les murs.
+Dans notre code, la méthode player_move de la classe Player ne reçoit pas directement l'entier symbol: int d'Arcade. Les tâches sont séparéés : la classe GameView s'occupe de détecter les touches pressées et relâchées dans on_key_press et on_key_release, puis elle change la valeur de plusieurs booléens (up_pressed, down_pressed, etc.) qui sont des attribut du Player.La méthode player_move utilise ensuite uniquement ces variables booléennes pour calculer la vitesse (change_x et change_y) et mettre à jour la direction. Ce choix permet de bien séparer le moteur graphique (Arcade) de la logique du joueur. Le joueur ne dépend pas des événements du clavier, il réagit juste à des indicateurs de mouvement.
 
-`GameView` garde le rôle de coordinateur. Elle crée le boomerang, le place dans une `SpriteList`, le dessine, puis appelle `update_boomerang` à chaque frame. Le boomerang connaît son propre comportement, mais il reçoit les éléments nécessaires du jeu, comme le joueur, les murs et les ennemis. Cela évite de mettre tous les calculs de mouvement du boomerang directement dans `GameView`.
+2) Comment gérez-vous les trous dans la map et la collision avec le joueur ?
 
-## Comment gérez-vous les 3 états du boomerang ?
+Les trous sont stockés dans map.py avec la valeur GridCell.HOLE. Quand le fichier de la carte est lu, le caractère O est transformé en case HOLE. Lors du lancement du jeu dans GameView, chaque trou devient un sprite qui est ajouté dans la liste self.holes. Ensuite, à chaque frame, la méthode restart_if_collision calcule la distance entre le joueur et chaque trou. Si le joueur s'approche trop près d'un trou, le jeu recrée une nouvelle GameView avec la même carte, ce qui recommence la partie. Les trous sont donc gérés différemment des murs : ils ne bloquent pas le joueur sur place, mais ils provoquent sa mort dès qu'il marche dessus.
 
-Les trois états du boomerang sont gérés avec l'énumération `BoomerangState`, définie dans `weapons.py`. Elle contient `INACTIVE`, `LAUNCHING` et `RETURNING`.
+3)  Question de design : Boomerang a) Avez-vous défini une classe séparée pour gérer le boomerang, et si oui, étend-elle une classe de sprite ? Pourquoi ?
 
-Au début, le boomerang est `INACTIVE`, donc invisible. Quand le joueur appuie sur `D` et que l'arme active est le boomerang, `GameView` appelle `boomerang.launch(self.player)`. La méthode `launch` vérifie que le boomerang est inactif, le place sur le joueur, lui donne une vitesse selon la direction du joueur, puis le fait passer en `LAUNCHING`.
+Oui, le boomerang est géré par une classe spécifique nommée Boomerang dans le fichier weapons.py. Elle hérite de la classe Weapon, qui elle-même hérite de arcade.TextureAnimationSprite.La classe parente Weapon contient deux méthodes utiles pour toutes les armes : desactivate (pour activer ou désactiver l'arme) et kill_enemies (pour gérer les collisions et éliminer les monstres). Grâce à cela, le boomerang possède toutes les propriétés d'un sprite animé d'Arcade (position, image, mouvements, collisions). Toute la logique (vitesse, distance maximale, phase de retour vers le joueur) est regroupée dans cette classe. GameView n'a pas à gérer les détails, elle doit juste afficher le boomerang et appeler la méthode update_boomerang.
 
-Dans l'état `LAUNCHING`, il avance en ligne droite jusqu'à toucher un mur, atteindre sa distance maximale ou toucher un ennemi. Ensuite, il passe en `RETURNING`. Dans cet état, il recalcule sa direction vers la position actuelle du joueur à chaque frame. Quand il revient assez près du joueur, il repasse en `INACTIVE` et disparaît.
+b) Comment gérez-vous les 3 états du boomerang ?
 
-Cette organisation correspond à une petite machine à états. Elle évite d'avoir plusieurs booléens difficiles à combiner, comme `is_visible`, `is_returning` et `is_launched`, qui pourraient se contredire.
+Les trois états du boomerang sont gérés avec l'énumération BoomerangState dans weapons.py. Les trois valeurs sont INACTIVE, LAUNCHING et RETURNING. Au début, le boomerang est INACTIVE et reste invisible. Quand le joueur appuie sur la touche D, la méthode launch vérifie que l'arme est bien inactive, puis la fait passer à l'état LAUNCHING. Le boomerang avance alors en ligne droite jusqu'à ce qu'il rencontre un mur ou qu'il atteigne la distance de délacement maximale. À ce moment-là, il passe à l'état RETURNING, change sa trajectoire pour revenir vers la position actuelle du joueur, et repasse à l'état INACTIVE dès qu'il est assez proche de lui.
 
+4) Question de design : Epée a) Comment gérez-vous le fait que vous avez maintenant deux types d’armes, avec des comportements différents ? Pensez-vous que vous pourriez ajouter une troisième arme sans tout refaire?
 
-# 4) Question de design : Epée
 
-## Comment gérez-vous le fait que vous avez maintenant deux types d’armes, avec des comportements différents ? Pensez-vous que vous pourriez ajouter une troisième arme sans tout refaire ?
+Les classes Boomerang et Sword héritent de la même classe de base Weapon (dans weapons.py). Comme cette classe hérite des sprites d'Arcade, les deux armes partagent le même fonctionnement pour la position, l'affichage et les collisions avec les ennemis. Ensuite, chaque arme garde son comportement: le Boomerang utilise ses trois états pour faire des allers-retours, tandis que la Sword fait une attaque rapide à courte portée en fonction d'où regarde le joueur. Dans GameView, on utilise une variable active_weapon (qui vaut WeaponType.BOOMERANG ou WeaponType.SWORD) pour savoir quelle arme est sélectionnée. La touche R permet de changer d'arme, et la touche D déclenche l'attaque de l'arme en cours.Pour ajouter une troisième arme, il suffit de créer une nouvelle classe qui hérite de Weapon, et d'écrire ses propres règles de mouvement. Il faudrait aussi l'ajouter dans l'énumération WeaponType et modifier la gestion des touches dans GameView, mais tout le reste du système de jeu n'aurait pas besoin d'être réécrit.
 
-`Boomerang` et `Sword` héritent tous les deux de la classe `Weapon`, définie dans `weapons.py`. Cette classe commune hérite de `arcade.TextureAnimationSprite`, donc les deux armes sont des sprites animés avec une position, une visibilité et des collisions.
+b) Si un monstre attaque le joueur “par derrière” pendant que l’épée est active, que devrait-il se passer ? Est-ce que votre implémentation a le comportement attendu ?
 
-Chaque arme garde ensuite son propre comportement. Le `Boomerang` gère ses états avec `BoomerangState` et revient vers le joueur. `Sword` gère une attaque courte, une durée d'animation, et une texture qui dépend de la direction du joueur. Les deux armes sont donc liées par une structure commune, mais leur logique reste séparée.
+Dans notre implémentation, le joueur et l'épée sont deux sprites bien distincts. L'épée élimine les monstres qu'elle touche en face du joueur, mais elle ne rend pas le joueur invincible. Si un monstre arrive par-derrière et touche le joueur pendant que l'épée est active, la collision est détectée normalement par la méthode restart_if_collision et la partie recommence.Ce comportement est celui attendu : l'épée sert uniquement à attaquer dans une zone précise, elle ne protège pas le reste du corps du joueur contre les attaques par derrière.
 
-Dans `GameView`, l'arme active est stockée avec `active_weapon`, qui peut valoir `WeaponType.BOOMERANG` ou `WeaponType.SWORD`. Quand le joueur appuie sur `R`, l'arme active change. Quand il appuie sur `D`, `GameView` regarde l'arme sélectionnée et appelle soit `boomerang.launch`, soit `sword.attack`.
 
-Pour ajouter une troisième arme, il faudrait créer une nouvelle classe qui hérite de `Weapon`, par exemple `Bow(Weapon)`, avec sa propre méthode d'attaque et de mise à jour. Il faudrait ensuite ajouter cette arme dans `WeaponType` et dans la gestion des touches de `GameView`. Le système n'est pas encore complètement polymorphe, car `GameView` fait encore un `if` sur le type d'arme, mais la base commune `Weapon` limite déjà la duplication.
+5) Question de design : Chauve-Souris a) Comment gérez-vous le fait que vous avez maintenant deux types de monstres, avec des comportements différents ? Pensez-vous que vous pourriez ajouter un troisième monstre sans tout refaire ?
 
-## Si un monstre attaque le joueur “par derrière” pendant que l’épée est active, que devrait-il se passer ? Est-ce que votre implémentation a le comportement attendu ?
+Spinner et Bat sont deux classes indépendantes qui héritent de arcade.TextureAnimationSprite, sans classe mère commune. On n'en a pas créé une car leur fonctionnement est trop différentes : le spinner n'a besoin d'aucun paramètre pour se déplacer. Une classe mère commune aurait forcé le spinner à implémenter une méthode avec des paramètres qu'il n'utilise pas. De plus, avec un seul ennemi "intelligent" (chauve-souris). Pour ajouter un troisième monstre, cela dépend de son type : si c'est un ennemi au comportement intelligent (qui réagit au joueur ou à l'environnement comme la chauve-souris), on créerait une classe mère avec une asbstractméthode move() commune, et on ferait hériter Bat et ce nouvel ennemi de celle-ci. Si c'est un ennemi au mouvement déterministe comme le spinner, on créerait simplement une nouvelle classe héritant de arcade.TextureAnimationSprite avec sa propre logique de déplacement, sans modifier les classes existantes.
 
-Dans mon implémentation, l'épée et le joueur restent deux sprites séparés. L'épée peut tuer les monstres qu'elle touche, mais elle ne rend pas le joueur invincible. Donc si un monstre touche le joueur pendant que l'épée est active, même par derrière, la collision joueur-monstre est toujours détectée dans `should_restart_after_collision`.
+6) Questions de design : Blobs a) Qu’avez-vous choisi comme type de nœud TypeNoeud ? Pourquoi ?
 
-Ce comportement est logique : l'épée attaque dans une zone autour du joueur, mais elle ne protège pas automatiquement tout le corps du joueur. Le seul cas où le joueur peut toucher un ennemi sans perdre est l'extension d'indestructibilité temporaire donnée par les coffres.
+Pour représenter les nœuds du navmesh, nous avons choisi un simple tuple de nombres décimaux : tuple[float, float], qui correspond aux coordonnées (x, y) en pixels.Ce choix est très pratique : ce type de données peut être utilisé comme clé (il est hashable), ce qui est obligatoire pour travailler avec la bibliothèque NetworkX. De plus, il fonctionne directement avec les fonctions d'Arcade (comme has_line_of_sight) et de NetworkX (comme dijkstra_path), sans avoir besoin de créer une classe supplémentaire. Les nombres décimaux (float) sont indispensables car si on utilisait des entiers (int), on aurait des problèmes d'arrondis lorsque la division entre la taille des cases et la densité du navmesh ne tombe pas juste. Nous avons arrondi les coordonnées des nœuds à la 6e décimale afin d'éviter les erreurs de précision des flottants. Sans cet arrondi, deux calculs censés produire la même position pouvaient donner des valeurs légèrement différentes, empêchant Dijkstra de retrouver le nœud dans le graphe et provoquant une boucle infinie pour la recherche du chemin.
 
-# 5) Question de design : Chauve-Souris
+b) À quel niveau traitez-vous la construction du navmesh, et où le stockez-vous ? Pourquoi ces choix ?
 
-## Comment gérez-vous le fait que vous avez maintenant deux types de monstres, avec des comportements différents ? Pensez-vous que vous pourriez ajouter un troisième monstre sans tout refaire ?
+Le navmesh est construit directement dans le fichier map.py par la méthode _build_navmesh (appelée pendant le chargement de la carte), et il est stocké dans l'attribut Map.navmesh. Ce choix permet de regrouper toutes les informations au même endroit : l'objet Map contient la grille du niveau, les positions de départ et le navmesh (qui fait partie de la map sauf qu'il est invisible). La classe GameView n'a pas à s'occuper de la création du graphe, elle a juste à lire self.map.navmesh quand elle en a besoin.
 
-`Bat` et `Blob` héritent d'une classe abstraite `Enemy` définie dans `enemies.py`. Cette classe définit une méthode abstraite `move`. Chaque sous-classe implémente `move` à sa façon : la chauve-souris a un mouvement aléatoire dans sa zone, alors que le blob utilise le navmesh pour se déplacer.
+c) Pouvez-vous tester la construction du navmesh sans dépendre de Arcade ?
 
-Dans `GameView`, les ennemis sont stockés dans `self.enemies`, et les spinners sont aussi conservés dans `self.spinners` car leur mouvement est plus simple et linéaire. Pour les collisions avec le joueur ou les armes, il existe aussi `self.all_enemies`, qui regroupe tous les ennemis dangereux. Cela permet aux armes et au joueur de ne pas devoir savoir précisément quel type d'ennemi est touché.
+Oui. Les fonctions build_navmesh et load_map_from_string utilisent uniquement Networkx et le fichier des constantes, il n'y a aucun import de la bibliothèque Arcade à ce niveau-là. On peut donc écrire un test unitaire classique, charger une carte sous forme de str, et vérifier le nombre de nœuds, les liaisons ou le fonctionnement de Dijkstra sans avoir besoin d'ouvrir une fenêtre de jeu.
 
-Le module `systems.py` contient `update_enemies`. Cette fonction parcourt les spinners puis les ennemis, et appelle `enemy.move(...)`. Grâce au polymorphisme, `update_enemies` n'a pas besoin de connaître le détail de chaque sous-classe : Arcade et Python appellent automatiquement la bonne version de `move`.
 
-Pour ajouter un troisième monstre, il suffirait de créer une classe `Ghost(Enemy)` avec sa propre méthode `move`, puis de créer ses sprites dans `world_builder.py` quand la map contient le caractère choisi. Le reste du code pourrait continuer à manipuler ce nouvel ennemi comme un `Enemy`.
+d) Si vous avez n×n nœuds par cellule et une carte m×m, quelle est la complexité quelle est la complexité de vos différents algorithmes ?
 
-# 6) Questions de design : Blobs
 
-## Qu’avez-vous choisi comme type de nœud TypeNoeud ? Pourquoi ?
+Construction du navmesh : O(m²*n²). On parcourt les m*m (m²) cellules de la map, et chaque cellule marchable peut créer n² nœuds. Pour chaque nœud, le code vérifie seulement un nombre constant de voisins ou de cases proches, donc cela ne change pas l'ordre de grandeur.
 
-Chaque nœud est un `tuple[float, float]` représentant une position en pixels `(x, y)`. Ce type est hashable, ce qui est obligatoire pour être utilisé comme nœud dans NetworkX. Il est aussi directement proche de ce dont le jeu a besoin, car les déplacements des blobs se font en positions de pixels.
+Recherche de chemin avec Dijkstra : NetworkX utilise un algorithme dont la complexité est environ O((|V| + |E|) log |V|). Dans notre navmesh, chaque nœud a au plus 8 voisins, donc |E| est proportionnel à |V|. Avec |V| = m²*n², cela donne environ O(m²*n²*log(m²*n²)).
 
-Je n'ai pas créé de classe spéciale pour les nœuds, car un tuple suffit ici : il représente clairement une position, il est simple à comparer, et il peut être utilisé comme clé dans les dictionnaires internes de NetworkX. Cela garde le navmesh plus léger.
+Déplacement du blob : une frame simple est en O(1) si le blob suit déjà un chemin, car il avance seulement vers le prochain point. Par contre, quand il choisit une nouvelle destination ou poursuit le joueur, il peut recalculer un chemin, et cette frame devient plus coûteuse à cause de Dijkstra (mais c'est un cas très rare en rapport du nombre de frame).
 
-Les valeurs sont des `float`, car avec une densité de navmesh supérieure à 1, les nœuds ne tombent pas toujours sur des coordonnées entières. Les positions sont arrondies pour éviter les problèmes de précision flottante. Sans cela, deux positions qui devraient être identiques pourraient être très légèrement différentes, ce qui casserait les tests d'appartenance dans le graphe.
 
-## À quel niveau traitez-vous la construction du navmesh, et où le stockez-vous ? Pourquoi ces choix ?
+7) Question de design : Interrupteurs et portails a) Quelle structure de données utilisez-vous pour représenter les conditions d’ouverture des portails ? Pourquoi ?
 
-Le navmesh est construit dans `map.py` par `build_navmesh`, appelée depuis `load_map_from_string`, et stocké dans `Map.navmesh`. Ainsi, `Map` contient tout ce qui décrit le niveau : la grille, la position de départ du joueur, les interrupteurs, les portails et le graphe de navigation.
+Pour représenter les conditions d'ouverture des portails, on a utiliser un dictionnaire récursif avec le type GateCondition dans le fichier gate_conditions.py. Cette structure ressemble beaucoup au format du fichier YAML. Par exemple, une condition simple comme switch_is_on: first(identifiant du switch) devient le dictionnaire {"switch_is_on": "first"}. Pour les conditions plus complexes utilisant des opérateurs comme and, or ou not, le dictionnaire contient une liste de sous-conditions. C'est le meilleur choix car cela correspond bien à la logique des formules, et la fonction condition_is_true peut s'évaluer facilement en s'appelant elle-même sur les sous-dictionnaires.
 
-Ce choix est logique car le navmesh dépend de la map, pas de l'affichage. Les obstacles utilisés pour le construire sont connus au chargement : buissons, trous et cases non marchables. Comme les portails restent des obstacles pour les blobs même quand ils sont ouverts, le navmesh n'a pas besoin d'être reconstruit pendant le jeu.
+b) Pouvez-vous tester l’évaluation des formules logiques sans dépendre de Arcade ?
 
-`GameView` n'a donc pas à connaître l'algorithme de construction du navmesh. Elle transmet seulement `self.map.navmesh` à `update_enemies`, puis aux blobs. Cela sépare la lecture de la carte, la représentation du monde, et la logique de déplacement.
+Oui, on peut tester toute la logique des formules sans utiliser Arcade car le code est isolé dans gate_conditions.py. La fonction condition_is_true prend seulement deux paramètres : une condition (GateCondition) et un dictionnaire contenant l'état de chaque interrupteur (True ou False).On peut donc tester le fonctionnement des conditions (and, or, not) avec de simples dictionnaires de test, sans avoir besoin de charger des graphismes, des sprites ou une interface GameView.
 
-## Pouvez-vous tester la construction du navmesh sans dépendre de Arcade ?
+c) S’il y a n interrupteurs et m portails, et en supposant que chaque condition de portail n’est qu’un unique switch_is_on, quelle est la complexité de traitement des portails à chaque frame ?
 
-Oui. `build_navmesh` et `load_map_from_string` ne dépendent pas d'une fenêtre Arcade. On peut donc appeler `load_map_from_string(MAP_TEXT)` dans un test unitaire classique, sans fixture `window`, et vérifier le nombre de nœuds, la présence de certaines arêtes ou l'existence d'un chemin Dijkstra.
+À chaque frame, la méthode update_gate_states est appelée. Son fonctionnement se fait en deux étapes :Elle construit d'abord un dictionnaire contenant l'état de tous les interrupteurs (ce qui prend un temps de O(n)).Elle parcourt ensuite les m portails. Comme chaque portail possède une condition simple, la vérification se fait instantanément en regardant dans le dictionnaire des interrupteurs (ce qui prend un temps de O(1) par portail, donc O(m au total). Si on additionne ces deux étapes, la complexité totale à chaque frame est O(n+m)
 
-C'est un bon choix de design car l'algorithme important du blob peut être testé sans lancer le jeu. Les tests de `tests/test_map.py` peuvent donc vérifier la structure abstraite de la carte, tandis que les tests de gameplay utilisent `GameView` seulement quand il faut tester l'interaction avec Arcade.
+8) Analyse des performances
 
-## Si vous avez n×n nœuds par cellule et une carte m×m, quelle est la complexité ?
+NAVMESH_DENSITY :
 
-Construction du navmesh : `O(m² × n²)`. On parcourt les `m²` cellules de la map, et chaque cellule marchable peut créer `n²` nœuds. Pour chaque nœud, le code vérifie seulement un nombre constant de voisins ou de cases proches, donc cela ne change pas l'ordre de grandeur.
+On fait varier NAVMESH_DENSITY (noté n). C'est lui qui détermine le nombre de nœuds créés par cellule (n² noeuds par cellule marchable). Plus n est grand, plus le navmesh est dense et le chargement lent. Avec m fixé à 20, on s'attend à une courbe quadratique en n.
 
-Recherche de chemin avec Dijkstra : NetworkX utilise un algorithme dont la complexité est environ `O((|V| + |E|) log |V|)`. Dans notre navmesh, chaque nœud a au plus 8 voisins, donc `|E|` est proportionnel à `|V|`. Avec `|V| = m² × n²`, cela donne environ `O(m² × n² × log(m² × n²))`.
+Benchmark.py charge une carte 20×20 vide et mesure le temps de load_map_from_string sur 5 répétitions.
+Chargement (NAVMESH_DENSITY fixé à n, carte 20x20)
+n = 1 | nb noeuds = 324 | temps moyen par frame = 7.358 ms
+n = 2 | nb noeuds = 1156 | temps moyen = 26.093 ms
+n = 3 | nb noeuds = 2704 | temps moyen = 60.179 ms
+n = 4 | nb noeuds = 4624 | temps moyen = 105.615 ms
+n = 5 | nb noeuds = 7396 | temps moyen = 171.383 ms
+n = 7 | nb noeuds = 14400 | temps moyen = 341.544 ms
+n = 10 | nb noeuds = 29172 | temps moyen = 694.035 ms
+n = 14 | nb noeuds = 57188 | temps moyen = 1407.506 ms
 
-Déplacement du blob : une frame simple est proche de `Θ(1)` si le blob suit déjà un chemin, car il avance seulement vers le prochain point. Par contre, quand il choisit une nouvelle destination ou poursuit le joueur, il peut recalculer un chemin, et cette frame devient plus coûteuse à cause de Dijkstra.
+On voit bien que le temps grimpe vite quand n augmente. Entre n=1 et n=14, le nombre de noeuds est multiplié par ~176 et le temps par ~180. C'est cohérent avec la complexité Θ(n²).
 
+nombre de blobs :
 
-# 7) Question de design : Interrupteurs et portails
+On mesure le coût de on_update en faisant varier le nombre de blobs (k). On utilise des blobs et pas des chauves-souris parce que les blobs appellent Dijkstra quand ils recalculent leur chemin, ce qui est beaucoup plus représentatif de la charge réelle. Le benchmark tourne sur 300 frames mesurées, on ne compte pas les 10 premières frames car tous les blobs calculent leur premier chemin en même temps à la frame 1, ce qui crée un pic qui fausse la moyenne.
 
-## Quelle structure de données utilisez-vous pour représenter les conditions d’ouverture des portails ? Pourquoi ?
+on_update (nombre de blobs k)
+k = 1 | temps moyen par frame = 29.261 ms
+k = 3 | temps moyen = 41.07 ms
+k = 10 | temps moyen = 47.799 ms
+k = 30 | temps moyen = 56.792 ms
+k = 100 | temps moyen = 111.167 ms
+k = 300 | temps moyen = 263.447 ms
 
-Les conditions d'ouverture des portails sont représentées par un dictionnaire récursif, avec le type `GateCondition` défini dans `gate_conditions.py`.
+La croissance est globalement linéaire. L'écart-type reste élevé parce que certaines frames déclenchent Dijkstra et coûtent beaucoup plus cher que les autres, c'est normal.
 
-Une condition est donc gardée presque sous la même forme que dans le YAML. Par exemple, une condition comme `switch_is_on: first` devient un dictionnaire du type `{"switch_is_on": "first"}`, et une condition plus complexe avec `and`, `or` ou `not` contient une liste de sous-conditions. Cette structure correspond directement à la définition récursive des formules logiques.
+9) Extensions personnelles Extension 1 : pics intermittents
 
-La fonction `condition_is_true` évalue ensuite la formule en s'appelant elle-même sur les sous-formules. Cela permet de gérer naturellement des conditions imbriquées, comme un `and` dans un `not`, lui-même dans un `or`.
+On a ajouté un système de pièges avec des pics au sol (GridCell.SPIKES, représentés par le caractère ! sur la carte). Ces pics changent d'état régulièrement grâce à un compte à rebours : lorsqu'ils sont sortis (actifs), ils sont totalement opaques et tuent le joueur s'il marche dessus ; lorsqu'ils sont rentrés (inactifs), ils deviennent transparents et le joueur peut passer sans subir de dégâts. Le code de cette extension se trouve dans interactions.py avec les fonctions update_spikes et should_restart_after_spikes_collision.
 
-Les données lues depuis le YAML sont vérifiées dans `map.py`. Les interrupteurs sont représentés par `SwitchData`, et les portails par `GateData`. Ces deux dataclasses appartiennent au modèle abstrait de la map : elles ne sont pas encore des sprites. Ensuite, `world_builder.py` transforme ces données en `SwitchSprite` et `GateSprite`, définis dans le même fichier que la construction du monde.
+Extension 2 : cles, coffres et invincibilité temporaire
 
-Pendant le jeu, `interactions.py` fait le lien entre les sprites et la logique : les armes peuvent inverser l'état d'un interrupteur, puis `update_gate_states` réévalue les conditions des portails. Si un portail est fermé, il est dans `walls`; s'il est ouvert, il est retiré de `walls`, donc le joueur peut passer.
+La deuxième extension ajoute des clés (caractère k) et des coffres (caractère C) sur la carte. Lorsque le joueur ramasse une clé, son compteur de clés augmente. S'il touche un coffre en possédant au moins une clé, le coffre s'ouvre, une clé est retirée de l'inventaire, et le joueur devient invincible pendant quelques secondes.Cette mécanique apporte un nouvel avantage au joueur, quand il est invincible, toucher un monstre ne relance pas la partie, mais fait disparaître le monstre de l'écran. Ce système est géré dans systems.py et dans la classe Player. Le nombre de clés possédées est affiché à l'écran grâce au module text.py.
 
-## Pouvez-vous tester l’évaluation des formules logiques sans dépendre de Arcade ?
 
-Oui, l'évaluation des formules logiques peut être testée sans Arcade, car elle est séparée dans le fichier `gate_conditions.py`. La fonction `condition_is_true` prend seulement deux arguments : une condition `GateCondition` et un dictionnaire `switch_states` qui associe chaque id d'interrupteur à `True` ou `False`.
 
-On peut donc tester directement des formules comme `switch_is_on`, `not`, `and` ou `or` avec de simples dictionnaires Python, sans créer de fenêtre Arcade, de sprites ou de `GameView`. C'est utile parce que la logique des portails reste indépendante de l'affichage et du moteur de jeu.
+PARTIE EXPLICATION DU CODE :
 
-Les tests de map vérifient aussi que les configurations YAML invalides sont refusées : un portail ne peut pas dépendre d'un interrupteur inconnu, un `and` ou un `or` doit avoir deux sous-conditions, et un caractère `|` dans la map doit correspondre à une configuration de portail.
+Semaine 1 : Découverte d’Arcade :
 
-## S’il y a n interrupteurs et m portails, et en supposant que chaque condition de portail n’est qu’un unique switch_is_on, quelle est la complexité de traitement des portails à chaque frame ?
+La structure de base (GameView, PhysicsEngineSimple, Camera2D) copiée-colée.
 
-À chaque frame, `GameView` appelle `update_gate_states`. Cette méthode construit d'abord un dictionnaire `switch_states` avec l'état de tous les interrupteurs, ce qui coûte `Θ(n)`.
+Gestion du clavier par booléens. Changer directement change_x dans on_key_press pause un problème : relâcher droite quand gauche est encore enfoncée arrête le joueur. On stocke donc l'état de chaque touche dans un bool et on recalcule la vitesse à chaque frame.
 
-Ensuite, elle parcourt les `m` portails. Pour chaque portail, si la condition est seulement un `switch_is_on`, l'évaluation est en `Θ(1)` grâce au dictionnaire des interrupteurs. Le traitement des portails coûte donc `Θ(m)`.
+Création des fichiers constants.py et textures.py. Les constantes et les textures sont isolées dans des fichiers pour éviter de répéter les valeurs dans tout le code, améliore la visibilité et garanti que chaque image n'est chargée qu'une seule fois dans le jeu.
 
-Au total, la complexité par frame est donc `Θ(n + m)`. L'utilisation d'un dictionnaire est importante ici : chercher l'état d'un interrupteur par son id ne demande pas de parcourir toute la liste des interrupteurs.
 
-# 8) Analyse des performances
+Semaine 2  : Maps et monstres
 
-## Chargement de la map - facteur choisi : NAVMESH_DENSITY
+on considère Map comme dataclass immuable, indépendante d'Arcade. Cela permet de tester le chargement, la validation du format et les calculs des limites des spinners sans ouvrir de fenêtre. L'immuabilité (frozen=True) garantit qu'une map chargée ne peut pas être modifiée accidentellement pendant le jeu.
 
-Pour le chargement de la map, le facteur que nous faisons varier est `NAVMESH_DENSITY`, noté `n`. Ce facteur indique combien de nœuds de navmesh sont créés sur un côté d'une cellule. Une cellule marchable crée donc au plus `n²` nœuds.
+GridCell en Enum. Les types de cellules (GRASS, BUSH, CRYSTAL, SPINNER...) sont un ensemble fini de valeurs connues à l'avance. Un Enum est mieux qu'un str ou un int : une valeur invalide est impossible, et le code est lisible (GridCell.BUSH plutôt que "x" ou 2).
 
-Si la map a une taille `m x m`, il y a `m²` cellules à parcourir. Pour chaque cellule marchable, la construction du navmesh essaie de créer `n²` nœuds. Pour chaque nœud, le code vérifie les cellules voisines pour savoir s'il est trop proche d'un buisson. Cette vérification reste en `Θ(1)`, car les positions des buissons sont stockées dans un `set`, donc le test `(x, y) in cases_buissons` ne parcourt pas toute la liste des buissons.
+Les limites des spinners sont calculées une seule fois au début à partir de la map à la création du monde. Puisque seuls la position initiale et les buissons (fixes) déterminent jusqu'où un spinner peut aller. On évite de recalculer à chaque frame. Le déplacement des spinner est mis dans uun fichier à part (une class et sa méthode de déplacemnt).
 
-Ensuite, le code relie les nœuds voisins. Chaque nœud teste au plus 8 voisins possibles : 4 voisins droits et 4 voisins diagonaux. Ces tests utilisent un dictionnaire de positions, donc la recherche d'un voisin est aussi en `Θ(1)`. Le nombre total d'arêtes reste donc proportionnel au nombre de nœuds.
+Vérification de la validité de la map, sinon on renvoie une exeption.
 
-La partie dominante du chargement est donc la construction du navmesh. Avec `m` fixe, si on augmente `n`, le nombre de nœuds augmente comme `n²`. La complexité grossière du chargement est donc `Θ(m² × n²)`. Dans le benchmark, `m` est fixe et on fait varier `n`, donc on s'attend à une croissance proche de `Θ(n²)`.
 
-## Benchmarks - chargement
+Semaine 3 : Trous et boomerang
 
-Le script `benchmark.py` construit une map ouverte de taille fixe, puis mesure `load_map_from_string` pour plusieurs valeurs de `NAVMESH_DENSITY`. Les mesures brutes sont sauvegardées dans `benchmarks.csv`, et le graphe dans `benchmarks.png`.
+Classe Player qui hérite de arcade.TextureAnimationSprite. Jusqu'ici, la logique du joueur était surtout dans GameView. On a créé une classe Player qui regroupe tout ce qui concerne le joueur (direction, touches, score, invincibilité, animation) au même endroit.
 
-| NAVMESH_DENSITY n | Nombre de nœuds | Temps moyen (ms) | Écart-type (ms) |
-|---:|---:|---:|---:|
-| 1 | 324 | 4.007 | 0.754 |
-| 2 | 1156 | 12.534 | 0.837 |
-| 3 | 2704 | 30.162 | 2.156 |
-| 4 | 4624 | 51.272 | 2.750 |
-| 5 | 7396 | 93.032 | 10.483 |
-| 7 | 14400 | 172.229 | 13.946 |
-| 10 | 29172 | 337.616 | 6.375 |
-| 14 | 57188 | 667.680 | 13.174 |
+On a fait un Enum pour la direction, pour les mêmes raisons que le l'Enum de Gridcell.
 
-Les résultats suivent bien l'analyse théorique. Quand `n` augmente, le nombre de nœuds augmente fortement, et le temps de chargement augmente de manière proche de quadratique. Les écarts ne sont pas parfaitement réguliers, ce qui est normal pour des mesures réelles : il y a le coût de Python, NetworkX, l'allocation mémoire, et le système d'exploitation.
+on_key_press (gère les touches préssées) et met à jour des booléens (up_pressed, down_pressed...). player_move() ne reçoit rien et lit ces booléens directement.
 
-## on_update - facteur choisi : nombre d'ennemis
+Trous gérés par distance, pas par collision. On utilise donc un calcul de distance (mort si distance ≤ 16 pixels du centre du trou) plutôt que check_for_collision.
 
-Pour `on_update`, le facteur choisi est le nombre d'ennemis, noté `k`. C'est un bon facteur car `GameView.do_on_update` appelle `update_enemies`, qui parcourt les spinners puis les ennemis. Dans notre benchmark, on fait varier le nombre de chauves-souris, car leur déplacement est simple et permet d'isoler le coût de la boucle sur les ennemis.
+Pour le boomerang, on fait une Classe Boomerang qui hérite d'une classe Weapon, elle-même héritant de arcade.TextureAnimationSprite. Le boomerang a besoin d'une position, d'une animation et de collisions. La classe Weapon regroupe le code commun à toutes les armes (desactivate et kill_enemies), l'utilisation de ce polymorphisme permet d'éviter la duplication de code quand on devra ajouter une nouvelle arme.
 
-Pour chaque ennemi, `update_enemies` calcule la distance avec le joueur. Ce calcul est en `Θ(1)`. Ensuite, si l'ennemi est assez proche, le code peut appeler `arcade.has_line_of_sight`. Cette fonction dépend des murs et de la distance à vérifier, mais le spatial hash de `SpriteList` évite de tester tous les murs un par un. Le déplacement d'une chauve-souris est aussi en `Θ(1)` : elle calcule une nouvelle direction éventuelle, puis une nouvelle position.
+On gère l'état du boomerang avec BoomerangState en Enum avec 3 états (INACTIVE, LAUNCHING, RETURNING). L'état est privé et mis en lecture seule grâce à une property (car on ne peut pas forcer le boomerang dans un état invalide depuis l'extérieur).
 
-Dans le cas des blobs, certaines frames peuvent être plus coûteuses, car un blob peut recalculer un chemin avec Dijkstra sur le navmesh. Si `V` est le nombre de nœuds du navmesh, Dijkstra coûte environ `Θ((V + E) log V)`. Comme chaque nœud du navmesh a au plus 8 voisins, `E` reste proportionnel à `V`, donc le coût est environ `Θ(V log V)`. Mais ce recalcul n'arrive pas à chaque frame, seulement quand le blob choisit une nouvelle cible ou poursuit le joueur.
+on affiche le score affiché avec une deuxième caméra fixe( pas de déplacement de l'ui).
 
-Dans le benchmark choisi, avec des chauves-souris, le coût attendu de `on_update` est donc proche de `Θ(k)`. Les autres opérations de la frame restent présentes, mais elles ne dépendent pas directement du nombre d'ennemis.
+Semaine 4 : Épée et Chauve-souris
 
-## Benchmarks - on_update
+Ajout de la classe Sword qui hérite de Weapon, on a donc juste du écrire le comportement propre à l'épée (attaque directionnelle, durée limitée). Le code commun (desactivate, kill_enemies) est déjà dans Weapon. on cré l'Enum WeaponType (BOOMERANG ou SWORD) pour que le gameview connaisse l'arme actuelle, une alternative aurait été un booléen, mais l'Enum est plus extensible si on veut ajouter une troisième arme.
 
-Le script `benchmark.py` construit des maps contenant un nombre variable de chauves-souris, crée une `GameView`, puis appelle directement `view.on_update(1 / 60)` sans utiliser `window.test`, comme demandé dans la consigne.
+On créé la bat indépendement des spinner mais dans le meme fichier, pas de classe mère pour SpinnerSprite et Bat : leurs interfaces sont trop différentes. Le spinner n'a besoin d'aucun paramètre pour se déplacer, contrairement à un ennemi intelligent qui aurait besoin et du joueur. Les forcer dans une même abstraction ne serait pas utile. Les deux types d'ennemis sont gérés dans des listes séparées dans GameView
 
-| Nombre d'ennemis k | Temps moyen par frame (ms) | Écart-type (ms) |
-|---:|---:|---:|
-| 1 | 2.344 | 1.815 |
-| 3 | 5.256 | 1.997 |
-| 10 | 0.566 | 0.243 |
-| 30 | 0.836 | 0.224 |
-| 100 | 2.289 | 0.756 |
-| 300 | 5.682 | 1.558 |
 
-Les mesures ne sont pas parfaitement monotones pour les petites valeurs de `k`. C'est probablement dû au bruit de mesure, aux caches, à Arcade, et aux coûts fixes de `on_update` qui dominent quand il y a très peu d'ennemis. En revanche, pour les valeurs plus grandes, on observe bien que le temps augmente avec le nombre d'ennemis : 30 ennemis coûtent moins que 100, et 100 coûtent moins que 300. Cela correspond à l'analyse grossière en `Θ(k)`.
+Semaine 5 : Blob et interrupteurs :
 
-# 9) Extensions personnelles
+On crée une classe abstraite Enemy pour regrouper les deux enemies (blob, et bat) (déplacement intelligent, réaction au joueur). On crée donc Enemy avec @abstractmethod move(navmesh, player_pos). Bat et Blob en héritent. par conséquent GameView boucle sur une seule liste d'ennemis et appelle move() sans connaître le type concret. SpinnerSprite reste à part, sa logique de déplacement n'ayant pas besoin du navmesh ni du joueur.
 
-## Extension 1 : pics intermittents
+Navmesh stocké dans Map, indépendant d'Arcade. La construction du navmesh se fait dans map.py lors du chargement, et le résultat est stocké dans Map.navmesh. Cela garde toute la logique de la carte au même endroit. Comme map.py n'importe rien d'Arcade, on peut tester la construction du navmesh et la recherche de chemin avec de simples strings Python, sans fenêtre.
 
-Une extension ajoutée au jeu est le système de pics (`GridCell.SPIKES`, caractère `!` dans la map). Les pics changent régulièrement d'état avec un timer : lorsqu'ils sont actifs, ils sont opaques et tuent le joueur en cas de collision ; lorsqu'ils sont inactifs, ils deviennent semi-transparents et le joueur peut passer dessus sans mourir.
+On a ajouté SwitchData et GateData des dataclasses immuables dans map.py
+Un nouveau fichier gate_conditions.py est créé, avec le type récursif GateCondition et la fonction condition_is_true(). Il est appelé depuis interactions.py à chaque frame pour mettre à jour l'état des portails. Ce module n'importe rien d'Arcade, ce qui le rend testable sans fenêtre de jeu.
 
-Cette extension montre le lien entre plusieurs fichiers. `map.py` lit le caractère `!`, `world_builder.py` crée les sprites de pics, `GameView` stocke `spikes_timer` et `spikes_are_active`, et `interactions.py` contient `update_spikes` et `should_restart_after_spikes_collision`. Le timer est mis à jour dans `GameView.do_on_update`, puis la collision est vérifiée juste après.
+Lecture YAML déléguée à pyyaml. On utilise yaml.safe_load() pour le parsing, et on cré nos propres fonctions de validation (as_int, as_str...) pour vérifier les types et lancer InvalidMapFileException en cas d'erreur.
 
-Elle est testée dans `tests/test_gameplay.py` avec des tests qui vérifient le changement d'état, le changement d'opacité, la mort sur pics actifs et la survie sur pics inactifs.
-
-## Extension 2 : cles, coffres et invincibilite temporaire
-
-Une autre extension est le système de clés et de coffres. Les clés sont placées sur la map avec le caractère `k`, les coffres avec `C`. Quand le joueur ramasse une clé, son compteur de clés augmente. Quand il touche un coffre avec au moins une clé, le coffre s'ouvre, consomme une clé, et le joueur devient temporairement indestructible.
-
-Cette extension ajoute un objectif supplémentaire au joueur et modifie les interactions avec les ennemis : pendant l'indestructibilité, toucher un ennemi ne redémarre pas la partie, mais retire l'ennemi. Le compteur de clés et l'état d'indestructibilité sont stockés dans `Player`. Les collisions avec les clés, coffres et cristaux sont regroupées dans `systems.py` avec `update_collectibles`, et l'affichage du nombre de clés est géré par `text.py`.
-
-Cette organisation garde la même logique générale que le reste du projet : `map.py` décrit les cases, `world_builder.py` crée les sprites, `systems.py` met à jour les systèmes de jeu, `interactions.py` contient les règles de collision importantes, et `GameView` coordonne l'ensemble à chaque frame.
+On a mis 2 méthodes statiques dans Blob. closest_node et random_axis car elles effectuent un calcul sans lire ni modifier l'état du blob.Les déclarer en méthode d'instance aurait été moins rigoureux.

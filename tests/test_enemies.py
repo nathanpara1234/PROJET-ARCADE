@@ -1,18 +1,12 @@
 import random
 from math import sqrt
-
 import arcade
 import networkx as nx
-
 from gameview import GameView
 from map import load_map_from_string
 from weapons import BoomerangState
-from enemies import (
-    Bat,
-    Blob,
-    compute_horizontal_spinner_limits,
-    compute_vertical_spinner_limits,
-)
+from enemies import Bat, Blob, SpinnerSprite
+from world_builder import compute_horizontal_spinner_limits, compute_vertical_spinner_limits
 from constants import TILE_SIZE, BAT_MOUVEMENT_SPEED, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT
 
 MAP_TEXT = """width: 15
@@ -95,7 +89,7 @@ def test_bat_count_on_map(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    assert len(view.enemies) == 1
+    assert len(view.world.enemies) == 1
 
 
 def test_player_touching_bat_triggers_restart(window: arcade.Window) -> None:
@@ -104,7 +98,7 @@ def test_player_touching_bat_triggers_restart(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    bat = view.enemies[0]
+    bat = view.world.enemies[0]
     view.player.center_x = bat.center_x
     view.player.center_y = bat.center_y
 
@@ -119,19 +113,17 @@ def test_bat_killed_by_boomerang(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    bat = view.enemies[0]
+    bat = view.world.enemies[0]
 
+    view.boomerang.launch(view.player)
     view.boomerang.center_x = bat.center_x
     view.boomerang.center_y = bat.center_y
-    view.boomerang.state = BoomerangState.LAUNCHING
-    view.boomerang.visible = True
-    view.boomerang.active = True
     view.boomerang.change_x = 1
     view.boomerang.change_y = 0
 
-    initial_count = len(view.enemies)
+    initial_count = len(view.world.enemies)
     view.do_on_update(1 / 60)
-    assert len(view.enemies) == initial_count - 1
+    assert len(view.world.enemies) == initial_count - 1
 
 
 def test_bat_killed_by_sword(window: arcade.Window) -> None:
@@ -140,17 +132,17 @@ def test_bat_killed_by_sword(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    bat = view.enemies[0]
+    bat = view.world.enemies[0]
 
     view.sword.active = True
     view.sword.visible = True
-    view.sword.elapsed_time = 0
+
     view.sword.center_x = bat.center_x
     view.sword.center_y = bat.center_y
 
-    initial_count = len(view.enemies)
+    initial_count = len(view.world.enemies)
     view.do_on_update(1 / 60)
-    assert len(view.enemies) == initial_count - 1
+    assert len(view.world.enemies) == initial_count - 1
 
 
 MAP_TEXT_BLOB = """width: 15
@@ -185,7 +177,7 @@ def test_blob_count_on_map(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    assert len(view.enemies) == 1
+    assert len(view.world.enemies) == 1
 
 def test_player_touching_blob_triggers_restart(window: arcade.Window) -> None:
     """Le joueur meurt quand il touche un blob : la vue est remplacée"""
@@ -193,7 +185,7 @@ def test_player_touching_blob_triggers_restart(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    blob = view.enemies[0]
+    blob = view.world.enemies[0]
     view.player.center_x = blob.center_x
     view.player.center_y = blob.center_y
 
@@ -208,19 +200,17 @@ def test_blob_killed_by_boomerang(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    blob = view.enemies[0]
+    blob = view.world.enemies[0]
 
+    view.boomerang.launch(view.player)
     view.boomerang.center_x = blob.center_x
     view.boomerang.center_y = blob.center_y
-    view.boomerang.state = BoomerangState.LAUNCHING
-    view.boomerang.visible = True
-    view.boomerang.active = True
     view.boomerang.change_x = 1
     view.boomerang.change_y = 0
 
-    initial_count = len(view.enemies)
+    initial_count = len(view.world.enemies)
     view.do_on_update(1 / 60)
-    assert len(view.enemies) == initial_count - 1
+    assert len(view.world.enemies) == initial_count - 1
 
 
 def test_blob_killed_by_sword(window: arcade.Window) -> None:
@@ -229,17 +219,17 @@ def test_blob_killed_by_sword(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    blob = view.enemies[0]
+    blob = view.world.enemies[0]
 
     view.sword.active = True
     view.sword.visible = True
-    view.sword.elapsed_time = 0
+
     view.sword.center_x = blob.center_x
     view.sword.center_y = blob.center_y
 
-    initial_count = len(view.enemies)
+    initial_count = len(view.world.enemies)
     view.do_on_update(1 / 60)
-    assert len(view.enemies) == initial_count - 1
+    assert len(view.world.enemies) == initial_count - 1
 
 
 def test_blob_chases_player_when_visible(window: arcade.Window) -> None:
@@ -248,7 +238,7 @@ def test_blob_chases_player_when_visible(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    blob = view.enemies[0]
+    blob = view.world.enemies[0]
 
     view.player.center_x = blob.center_x
     view.player.center_y = blob.center_y + 3 * TILE_SIZE
@@ -292,12 +282,12 @@ def test_blob_sees_closed_gate_as_wall(window: arcade.Window) -> None:
     )
     view = GameView(game_map)
     window.show_view(view)
-    blob = view.enemies[0]
-    gate = view.gates[0]
+    blob = view.world.enemies[0]
+    gate = view.interactions.gates[0]
 
     assert not gate.is_open
-    assert gate in view.walls
-    assert not arcade.has_line_of_sight(blob.position, view.player.position, view.walls)
+    assert gate in view.world.walls
+    assert not arcade.has_line_of_sight(blob.position, view.player.position, view.world.walls)
 
 
 def test_blob_does_not_see_player_behind_bush_wall(window: arcade.Window) -> None:
@@ -316,9 +306,9 @@ xxxxxxxxx
     view = GameView(game_map)
     window.show_view(view)
 
-    blob = view.enemies[0]
+    blob = view.world.enemies[0]
 
-    assert not arcade.has_line_of_sight(blob.position, view.player.position, view.walls)
+    assert not arcade.has_line_of_sight(blob.position, view.player.position, view.world.walls)
 
 
 MAP_TEXT_SPINNER = """width: 7
@@ -330,6 +320,49 @@ x  s  x
 x P   x
 xxxxxxx
 ---"""
+
+
+def test_spinner_moves_horizontally(window: arcade.Window) -> None:
+    """le spinner doit avancer sur x et pas bouger sur y"""
+    spinner = SpinnerSprite(center_x=100, center_y=100, is_horizontal=True, min_pos=50, max_pos=200)
+    initial_x = spinner.center_x
+    spinner.spinner_move()
+    assert spinner.center_x != initial_x
+    assert spinner.center_y == 100  # y ne doit pas changer
+
+
+def test_blob_random_axis_in_bounds() -> None:
+    """Verifie que random_axis donne une valeur dans la zone"""
+    import random
+    for i in range(5):
+        val = Blob.random_axis(start=100, limit=50, world_max=500)
+        assert 50 <= val <= 150
+
+
+def test_spinner_fait_demi_tour_au_max(window: arcade.Window) -> None:
+    """quand le spinner atteint sa limite haute il doit faire demi-tour"""
+    spinner = SpinnerSprite(center_x=100, center_y=100, is_horizontal=True, min_pos=50, max_pos=150)
+    new_pos, new_speed = spinner.bounce(150, 5)
+    assert new_pos == 150
+    assert new_speed < 0
+
+
+def test_spinner_fait_demi_tour_au_min(window: arcade.Window) -> None:
+    """quand le spinner atteint sa limite basse il repart dans l'autre sens"""
+    spinner = SpinnerSprite(center_x=80, center_y=80, is_horizontal=False, min_pos=50, max_pos=150)
+    new_pos, new_speed = spinner.bounce(50, 0)
+    assert new_pos == 50
+    assert new_speed > 0
+
+
+def test_closest_node() -> None:
+    """Verifie que closest_node trouve le bon noeud"""
+    G = nx.Graph()
+    G.add_node((0, 0))
+    G.add_node((10, 10))
+    G.add_node((100, 100))
+    assert Blob.closest_node(G, 8, 9) == (10, 10)
+    assert Blob.closest_node(G, 1, 1) == (0, 0)
 
 
 def test_horizontal_spinner_limits_stop_before_bushes() -> None:
@@ -367,7 +400,7 @@ def test_player_touching_spinner_triggers_restart(window: arcade.Window) -> None
     view = GameView(game_map)
     window.show_view(view)
 
-    spinner = view.spinners[0]
+    spinner = view.world.spinners[0]
     view.player.center_x = spinner.center_x
     view.player.center_y = spinner.center_y
 
@@ -382,19 +415,17 @@ def test_spinner_killed_by_boomerang(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    spinner = view.spinners[0]
+    spinner = view.world.spinners[0]
+    view.boomerang.launch(view.player)
     view.boomerang.center_x = spinner.center_x
     view.boomerang.center_y = spinner.center_y
-    view.boomerang.state = BoomerangState.LAUNCHING
-    view.boomerang.visible = True
-    view.boomerang.active = True
     view.boomerang.change_x = 1
     view.boomerang.change_y = 0
 
-    initial_count = len(view.spinners)
+    initial_count = len(view.world.spinners)
     view.do_on_update(1 / 60)
 
-    assert len(view.spinners) == initial_count - 1
+    assert len(view.world.spinners) == initial_count - 1
 
 
 def test_spinner_killed_by_sword(window: arcade.Window) -> None:
@@ -403,14 +434,14 @@ def test_spinner_killed_by_sword(window: arcade.Window) -> None:
     view = GameView(game_map)
     window.show_view(view)
 
-    spinner = view.spinners[0]
+    spinner = view.world.spinners[0]
     view.sword.active = True
     view.sword.visible = True
-    view.sword.elapsed_time = 0
+
     view.sword.center_x = spinner.center_x
     view.sword.center_y = spinner.center_y
 
-    initial_count = len(view.spinners)
+    initial_count = len(view.world.spinners)
     view.do_on_update(1 / 60)
 
-    assert len(view.spinners) == initial_count - 1
+    assert len(view.world.spinners) == initial_count - 1

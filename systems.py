@@ -2,13 +2,15 @@ from math import sqrt
 import networkx as nx
 import arcade
 
-from constants import TILE_SIZE
+from constants import TILE_SIZE, BLOB_ZONE_WIDTH
 from textures import TEXTURE_EMPTY_CHEST
 from player import Player
 from text import Text
+from weapons import Sword
 
 
-def _clamp_camera(pos: float, window_size: float, world_size: float) -> float:# soit ça retourne la position du joueur ou une limite de map
+# clamp la position de la caméra pour rester dans la map
+def clamp_camera(pos: float, window_size: float, world_size: float) -> float:
     min_camera = window_size / 2
     max_camera = world_size - window_size / 2
     if pos < min_camera:
@@ -18,7 +20,8 @@ def _clamp_camera(pos: float, window_size: float, world_size: float) -> float:# 
     return pos
 
 
-def update_camera_position(# soit la caméra suit le joueur soit elle est bloqué à la limite
+# déplace la caméra pour suivre le joueur
+def update_camera_position(
     camera: arcade.camera.Camera2D,
     player: Player,
     window: arcade.Window,
@@ -26,12 +29,13 @@ def update_camera_position(# soit la caméra suit le joueur soit elle est bloqu�
     world_height: int,
 ) -> None:
     camera.position = (
-        _clamp_camera(player.center_x, window.width, world_width),
-        _clamp_camera(player.center_y, window.height, world_height),
+        clamp_camera(player.center_x, window.width, world_width),
+        clamp_camera(player.center_y, window.height, world_height),
     )
 
 
-def update_enemies(# pour savoir si le player est dans la zone du blob
+# deplace les ennemis
+def update_enemies(
     spinners: arcade.SpriteList,
     enemies: arcade.SpriteList,
     player: Player,
@@ -43,14 +47,17 @@ def update_enemies(# pour savoir si le player est dans la zone du blob
 
     for enemy in enemies:
         distance = sqrt((enemy.center_x - player.center_x) ** 2 + (enemy.center_y - player.center_y) ** 2)
-        if distance <= 5 * TILE_SIZE and arcade.has_line_of_sight(enemy.position, player.position, walls):
+        # le blob ne poursuit que si le joueur est dans sa zone ET visible
+        if distance <= BLOB_ZONE_WIDTH and arcade.has_line_of_sight(enemy.position, player.position, walls):
             enemy.move(navmesh, player.position)
         else:
             enemy.move(navmesh, None)
 
 
-def update_collectibles(# fonction de collision avec item recuperable
+# collecte des items quand le joueur marche dessus ou les frappe avec l'épée
+def update_collectibles(
     player: Player,
+    sword: Sword,
     crystals: arcade.SpriteList,
     crystal_sound: arcade.Sound,
     keys: arcade.SpriteList,
@@ -59,9 +66,11 @@ def update_collectibles(# fonction de collision avec item recuperable
     chests_sound: arcade.Sound,
     text: Text,
 ) -> None:
-    collision_crystals = arcade.check_for_collision_with_list(player, crystals)
+    hit_crystals: set[arcade.Sprite] = set(arcade.check_for_collision_with_list(player, crystals))
+    if sword.active:
+        hit_crystals |= set(arcade.check_for_collision_with_list(sword, crystals))
+    collision_crystals = hit_crystals
     for crystal in collision_crystals:
-
         crystal.remove_from_sprite_lists()
         arcade.play_sound(crystal_sound)
         player.score += 1
@@ -78,6 +87,7 @@ def update_collectibles(# fonction de collision avec item recuperable
 
     collision_chests = arcade.check_for_collision_with_list(player, chests)
     for chest in collision_chests:
+        # le coffre ne s'ouvre que si on a une clé
         if player.key > 0:
             chest.texture = TEXTURE_EMPTY_CHEST
             arcade.play_sound(chests_sound)

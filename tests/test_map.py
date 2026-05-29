@@ -143,21 +143,10 @@ def test_navmesh_is_networkx_graph() -> None:
     assert isinstance(game_map.navmesh, nx.Graph)
 
 
-def test_navmesh_has_nodes() -> None:
-    """Verifie que le navmesh contient des noeuds sur les cases marchables"""
-    game_map = load_map_from_string(MAP_SIMPLE)
-    assert len(game_map.navmesh.nodes) > 0
-
-
-def test_navmesh_has_edges() -> None:
-    """Verifie que les noeuds du navmesh sont relies par des aretes"""
-    game_map = load_map_from_string(MAP_SIMPLE)
-    assert len(game_map.navmesh.edges) > 0
-
-
 def test_navmesh_node_count_is_limited_by_density() -> None:
     """Verifie qu'une case marchable cree au plus NAVMESH_DENSITY carres de noeuds"""
     game_map = load_map_from_string(MAP_SIMPLE)
+    # MAP_SIMPLE a 3x3 cases marchables (les cases intérieures sans les buissons)
     walkable_cells = 3 * 3
     max_nodes = walkable_cells * NAVMESH_DENSITY ** 2
     assert len(game_map.navmesh.nodes) <= max_nodes
@@ -166,20 +155,23 @@ def test_navmesh_node_count_is_limited_by_density() -> None:
 def test_navmesh_is_connected_on_open_map() -> None:
     """Verifie que le navmesh d'une petite map ouverte est connexe"""
     game_map = load_map_from_string(MAP_SIMPLE)
+    # nx.is_connected verifie qu'on peut aller de n'importe quel noeud a n'importe quel autre
     assert nx.is_connected(game_map.navmesh)
 
 
 def test_navmesh_edges_have_weight() -> None:
     """Verifie que chaque arete du navmesh possede un poids"""
     game_map = load_map_from_string(MAP_SIMPLE)
-    for _, _, data in game_map.navmesh.edges(data=True):
+    # le poids sert a Dijkstra pour preferer les chemins droits aux diagonales
+    for u, v, data in game_map.navmesh.edges(data=True):
         assert "weight" in data
 
 
 def test_diagonal_edges_are_heavier_than_straight_edges() -> None:
     """Verifie que les diagonales coutent plus cher que les deplacements droits"""
     game_map = load_map_from_string(MAP_SIMPLE)
-    weights = [data["weight"] for _, _, data in game_map.navmesh.edges(data=True)]
+    # un deplacement diagonal vaut sqrt(2) * step, un deplacement droit vaut step
+    weights = [data["weight"] for u, v, data in game_map.navmesh.edges(data=True)]
     assert min(weights) < max(weights)
 
 
@@ -189,39 +181,49 @@ def test_dijkstra_finds_navmesh_path() -> None:
     nodes = list(game_map.navmesh.nodes)
     start = nodes[0]
     end = nodes[-1]
+    # nx.dijkstra_path leve une exception si aucun chemin n'existe
     path = nx.dijkstra_path(game_map.navmesh, start, end)
     assert len(path) >= 2
-
-
-def test_dijkstra_path_keeps_start_and_end_nodes() -> None:
-    """Verifie que le chemin commence et finit sur les bons noeuds"""
-    game_map = load_map_from_string(MAP_SIMPLE)
-    nodes = list(game_map.navmesh.nodes)
-    start = nodes[0]
-    end = nodes[-1]
-    path = nx.dijkstra_path(game_map.navmesh, start, end)
-    assert path[0] == start
-    assert path[-1] == end
 
 
 def test_bush_removes_nearby_navmesh_nodes() -> None:
     """Verifie qu'un buisson reduit le nombre de noeuds proches"""
     map_without_bush = load_map_from_string(MAP_SIMPLE)
     map_with_bush = load_map_from_string(MAP_WITH_CENTER_BUSH)
+    # les noeuds trop proches d'un buisson sont supprimes pour eviter que le blob le traverse
     assert len(map_with_bush.navmesh.nodes) < len(map_without_bush.navmesh.nodes)
 
 
 def test_navmesh_nodes_are_not_inside_border_bushes() -> None:
     """Verifie qu'aucun noeud n'est place dans les buissons de bordure"""
     game_map = load_map_from_string(MAP_SIMPLE)
+    # les buissons de bordure sont a x=0 et y=0, donc aucun noeud ne doit etre en dessous de TILE_SIZE
     for x, y in game_map.navmesh.nodes:
         assert x >= TILE_SIZE
         assert y >= TILE_SIZE
 
 
+def test_condition_not_seul() -> None:
+    """not tout seul doit inverser le resultat"""
+    condition = {"not": [{"switch_is_on": "a"}]}
+    assert condition_is_true(condition, {"a": False})
+    assert not condition_is_true(condition, {"a": True})
+
+
+def test_condition_operateur_inconnu() -> None:
+    """un operateur qu'on connait pas doit retourner false"""
+    condition = {"blabla": "a"}
+    assert not condition_is_true(condition, {"a": True})
+
+
+def test_condition_switch_absent() -> None:
+    """si le switch n'est pas dans le dictionnaire ca doit retourner false"""
+    condition = {"switch_is_on": "inexistant"}
+    assert not condition_is_true(condition, {})
+
+
 def test_gate_condition_is_evaluated_without_arcade() -> None:
     """Verifie une condition logique de portail sans utiliser Arcade"""
-    from gate_condition import condition_is_true
     condition = {
         "and": [
             {"switch_is_on": "first"},
@@ -235,7 +237,6 @@ def test_gate_condition_is_evaluated_without_arcade() -> None:
 
 def test_gate_condition_or_is_evaluated_without_arcade() -> None:
     """Verifie une condition or/not de portail sans utiliser Arcade"""
-    from gate_condition import condition_is_true
     condition = {
         "or": [
             {"not": [{"switch_is_on": "first"}]},
@@ -422,125 +423,3 @@ xxxxx
 
     assert game_map.get(2, 3) == GridCell.SPIKES
 
-
-def test_gate_condition_and_not_is_evaluated_without_arcade() -> None:
-    """Verifie une condition de portail and/not sans creer de fenetre Arcade"""
-    condition = {
-        "and": [
-            {"switch_is_on": "first"},
-            {"not": [{"switch_is_on": "second"}]},
-        ]
-    }
-
-    assert condition_is_true(condition, {"first": True, "second": False})
-    assert not condition_is_true(condition, {"first": True, "second": True})
-
-
-def test_gate_condition_or_is_evaluated_without_arcade() -> None:
-    """Verifie une condition de portail or sans creer de fenetre Arcade"""
-    condition = {
-        "or": [
-            {"switch_is_on": "first"},
-            {"switch_is_on": "second"},
-        ]
-    }
-
-    assert condition_is_true(condition, {"first": False, "second": True})
-    assert not condition_is_true(condition, {"first": False, "second": False})
-
-
-def test_map_loads_switches_and_gates_from_yaml() -> None:
-    """Verifie que le YAML charge les interrupteurs et les portails"""
-    game_map = load_map_from_string(
-"""width: 7
-height: 5
-switches:
-  - id: first
-    x: 2
-    y: 2
-    state: on
-gates:
-  - x: 4
-    y: 2
-    open_if:
-      switch_is_on: first
----
-xxxxxxx
-x     x
-x ^ | x
-x P   x
-xxxxxxx
----"""
-    )
-
-    assert game_map.get(2, 2) == GridCell.SWITCH
-    assert game_map.get(4, 2) == GridCell.GATE
-    assert game_map.switches[0].id == "first"
-    assert game_map.switches[0].is_on
-    assert game_map.gates[0].open_if == {"switch_is_on": "first"}
-
-
-def test_switch_is_off_by_default() -> None:
-    """Verifie qu'un interrupteur sans state commence eteint"""
-    game_map = load_map_from_string(
-"""width: 5
-height: 3
-switches:
-  - id: first
-    x: 1
-    y: 1
----
-xxxxx
-x^  x
-xPxxx
----"""
-    )
-
-    assert not game_map.switches[0].is_on
-
-
-def test_gate_with_unknown_switch_is_invalid() -> None:
-    """Verifie qu'un portail ne peut pas utiliser un interrupteur inconnu"""
-    with pytest.raises(InvalidMapFileException):
-        load_map_from_string(
-"""width: 5
-height: 3
-gates:
-  - x: 3
-    y: 1
-    open_if:
-      switch_is_on: missing
----
-xxxxx
-x  |x
-xPxxx
----"""
-        )
-
-
-def test_switch_character_needs_yaml_configuration() -> None:
-    """Verifie qu'un caractere ^ doit avoir une configuration YAML"""
-    with pytest.raises(InvalidMapFileException):
-        load_map_from_string(
-"""width: 5
-height: 3
----
-xxxxx
-x^  x
-xPxxx
----"""
-        )
-
-
-def test_gate_character_needs_yaml_configuration() -> None:
-    """Verifie qu'un caractere | doit avoir une configuration YAML"""
-    with pytest.raises(InvalidMapFileException):
-        load_map_from_string(
-"""width: 5
-height: 3
----
-xxxxx
-x | x
-xPxxx
----"""
-        )

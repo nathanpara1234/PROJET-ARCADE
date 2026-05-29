@@ -4,7 +4,7 @@ import arcade
 ORIG_TILE_SIZE: Final = (16, 16)# cest un tuple
 SWORD_TILE_SIZE: Final = (48,48)# tuple
 
-def _load_grid(#cette fonction retourne une liste de textures
+def load_grid(#cette fonction retourne une liste de textures
     file: str,
     columns: int,
     rows: int,
@@ -31,9 +31,9 @@ def _load_grid(#cette fonction retourne une liste de textures
     spritesheet = arcade.load_spritesheet(file)
     return spritesheet.get_texture_grid(tile_size, columns, columns * rows)
 
-_overworld_grid: Final = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)#ici on charge la grille principale du monde
+_overworld_grid: Final = load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Overworld_Tileset.png", 18, 13)#ici on charge la grille principale du monde
 # Les portails viennent du tileset du donjon, donc on charge aussi cette grille.
-_dungeon_grid: Final = _load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png", 13, 12)
+_dungeon_grid: Final = load_grid("assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png", 13, 12)
 
 TEXTURE_GRASS: Final[arcade.Texture] = _overworld_grid[18*1 + 6]
 TEXTURE_BUSH: Final[arcade.Texture] = _overworld_grid[18*3 + 5]
@@ -46,7 +46,7 @@ TEXTURE_GATE_OPEN: Final[arcade.Texture] = _dungeon_grid[13*8 + 4]
 TEXTURE_GATE_CLOSED: Final[arcade.Texture] = _dungeon_grid[13*8 + 7]
 TEXTURE_EMPTY_CHEST : Final[arcade.Texture] = arcade.load_texture(
     "assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_static_open.png")
-def _load_animation_strip(#cette fonction charge une animation
+def load_animation_strip(#cette fonction charge une animation
     file: str,
     frame_count: int,
     frame_duration: int = 100,
@@ -71,71 +71,71 @@ def _load_animation_strip(#cette fonction charge une animation
     Returns:
         An `arcade.TextureAnimation` representing the full animation.
     """
-    grid = _load_grid(file, columns=frame_count, rows=1, tile_size=tile_size) # je découpe l'image en frame
+    grid = load_grid(file, columns=frame_count, rows=1, tile_size=tile_size) # je découpe l'image en frame
     keyframes = [arcade.TextureKeyframe(frame, frame_duration) for frame in grid]
     return arcade.TextureAnimation(keyframes)
 
 ANIMATION_PLAYER_IDLE_DOWN: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_down_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_down_anim_strip_6.png", 6)
 ANIMATION_PLAYER_IDLE_UP: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_up_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_up_anim_strip_6.png", 6)
 ANIMATION_PLAYER_IDLE_LEFT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_left_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_left_anim_strip_6.png", 6)
 ANIMATION_PLAYER_IDLE_RIGHT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_right_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_right_anim_strip_6.png", 6)
 ANIMATION_PLAYER_RUN_DOWN: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_down_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_down_anim_strip_6.png", 6)
 ANIMATION_PLAYER_RUN_UP: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_up_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_up_anim_strip_6.png", 6)
 ANIMATION_PLAYER_RUN_LEFT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_left_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_left_anim_strip_6.png", 6)
 ANIMATION_PLAYER_RUN_RIGHT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_right_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_run_right_anim_strip_6.png", 6)
 ANIMATION_CRYSTALS: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/crystal_item_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/crystal_item_anim_strip_6.png", 6)
 ANIMATION_SPINNER: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Spinner_Sprites/spinner_run_attack_anim_all_dir_strip_8.png",3)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Spinner_Sprites/spinner_run_attack_anim_all_dir_strip_8.png",3)
 ANIMATION_PLAYER_IDLE_UP: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_up_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_up_anim_strip_6.png", 6)
 
 ANIMATION_PLAYER_IDLE_LEFT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_left_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_left_anim_strip_6.png", 6)
 
 ANIMATION_PLAYER_IDLE_RIGHT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_right_anim_strip_6.png", 6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_idle_right_anim_strip_6.png", 6)
 ANIMATION_BOOMERANG: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/provided/boomerang-sheet.png",8,frame_duration=25,)
+    load_animation_strip("assets/provided/boomerang-sheet.png",8,frame_duration=25,)
 # === Partie Nico : animations de l'epee ===
 ANIMATION_SWORD_DOWN: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_down_anim_strip_6.png",6,frame_duration=50,tile_size = SWORD_TILE_SIZE)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_down_anim_strip_6.png",6,frame_duration=50,tile_size = SWORD_TILE_SIZE)
 
 ANIMATION_SWORD_UP: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_up_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_up_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
 ANIMATION_SWORD_LEFT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_left_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_left_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
 
 ANIMATION_SWORD_RIGHT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_right_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_attack48_right_anim_strip_6.png",6,frame_duration=50,tile_size=SWORD_TILE_SIZE,)
 TEXTURE_SHIELDED_DOWN: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_down.png")
 TEXTURE_SHIELDED_UP: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_up.png")
 TEXTURE_SHIELDED_LEFT: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_left.png")
 TEXTURE_SHIELDED_RIGHT: Final[arcade.Texture] = arcade.load_texture("assets/Top_Down_Adventure_Pack_v.1.0/Char_Sprites/char_shielded_static_right.png")
 
 ANIMATION_BAT: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkbat_Sprites/pinkbat_idle_left_anim_strip_5.png",5)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkbat_Sprites/pinkbat_idle_left_anim_strip_5.png",5)
 ANIMATION_BLOB : Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkslime_Sprites/pinkslime_idle_anim_all_dir_strip_6.png",6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Enemies_Sprites/Pinkslime_Sprites/pinkslime_idle_anim_all_dir_strip_6.png",6)
 
 ANIMATION_KEY : Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/key_item_anim_strip_6.png",6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/key_item_anim_strip_6.png",6)
 
 ANIMATION_CHEST : Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_strip_8.png",6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_strip_8.png",6)
 OPEN_ANIMATION_CHEST: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_opening_strip_5.png",6)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Props_Items_(animated)/lootchest_item_anim_opening_strip_5.png",6)
 # === Partie Nico : animation des pics ===
 ANIMATION_SPIKES: Final[arcade.TextureAnimation] = \
-    _load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Tiles_(animated)/Dungeon/spikes_tile_trap_anim_strip_12.png",12)
+    load_animation_strip("assets/Top_Down_Adventure_Pack_v.1.0/Tiles_(animated)/Dungeon/spikes_tile_trap_anim_strip_12.png",12)
 _dungeon_grid_archive: Final = arcade.load_spritesheet(
     "assets/Top_Down_Adventure_Pack_v.1.0/Dungeon_Tileset.png"
 ).get_texture_grid((16, 16), 13, 13 * 12)

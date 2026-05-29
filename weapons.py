@@ -1,5 +1,6 @@
 from enum import Enum, auto
 from math import sqrt
+from typing import Final
 import arcade
 from constants import SCALE, BOOMERANG_SPEED, BOOMERANG_MAX_DISTANCE, TILE_SIZE
 from textures import (
@@ -18,6 +19,8 @@ class WeaponType(Enum):
 
 
 class Weapon(arcade.TextureAnimationSprite):
+    """Classe de base pour les armes. Fournit desactivate() et kill_enemies() communs à Boomerang et Sword."""
+
     active: bool
 
     def __init__(self, animation: arcade.TextureAnimation, scale: float) -> None:
@@ -31,9 +34,14 @@ class Weapon(arcade.TextureAnimationSprite):
         self.visible = False
 
     def desactivate(self) -> None:
+        """Remet l'arme en état inactif (active=False, visible=False).
+        Les sous-classes qui surchargent cette méthode doivent appeler super().desactivate()
+        pour garantir que ces deux attributs sont toujours réinitialisés.
+        """
         self.active = False
         self.visible = False
 
+    # gère la collision avec les ennemies
     def kill_enemies(self, enemies: arcade.SpriteList[arcade.TextureAnimationSprite]) -> None:# fonction qui enleve les ennemis de la liste arcae sprite
         hit_enemies = arcade.check_for_collision_with_list(self, enemies)
         for enemy in hit_enemies:
@@ -44,32 +52,37 @@ class BoomerangState(Enum):# un enum pour les 3 etats possible d'un boomerang
     LAUNCHING = auto()
     RETURNING = auto()
 class Boomerang(Weapon):
-    state: BoomerangState
-    speed: float
-    max_distance: float
-    travelled_distance: float
+    """Arme à trois états (INACTIVE, LAUNCHING, RETURNING) qui revient vers le joueur après avoir été lancée."""
+    __state: BoomerangState
+    speed: Final[float]
+    max_distance: Final[float]
+    __travelled_distance: float
 
     def __init__(self) -> None:
         super().__init__(animation=ANIMATION_BOOMERANG,scale=SCALE,)
-        self.state = BoomerangState.INACTIVE
+        self.__state = BoomerangState.INACTIVE
         self.visible = False
         self.speed = BOOMERANG_SPEED
         self.max_distance = BOOMERANG_MAX_DISTANCE
-        # Distance parcourue par le boomerang lorsqu'il est lancé
-        self.travelled_distance = 0
-        # Pas de mouvement au départ
+        # Distance parcourue par le boomerang lorsqu'il est lance
+        self.__travelled_distance = 0
+        # Pas de mouvement au depart
         self.change_x = 0
         self.change_y = 0
 
+    @property
+    def state(self) -> BoomerangState:
+        return self.__state
+
     def launch(self, player: Player) -> None:
-        if self.state != BoomerangState.INACTIVE:# on peut lancer un boomerang seulement si il est inactif
+        if self.__state != BoomerangState.INACTIVE:# on peut lancer un boomerang seulement si il est inactif
             return
         # on place le boomerang directement au centre du joueur
         self.center_x = player.center_x
         self.center_y = player.center_y
-        self.travelled_distance = 0
+        self.__travelled_distance = 0
         self.visible = True
-        self.state = BoomerangState.LAUNCHING
+        self.__state = BoomerangState.LAUNCHING
         # le boomerang doit partir dans la direction où regarde le joueur
         if player.direction == Direction.NORTH:
             self.change_x = 0
@@ -85,20 +98,20 @@ class Boomerang(Weapon):
             self.change_y = 0
 
     def start_return(self) -> None:# lorsque le boomerang doit revenir on change juste son etat
-        if self.state == BoomerangState.INACTIVE:
+        if self.__state == BoomerangState.INACTIVE:
             return
-        self.state = BoomerangState.RETURNING
+        self.__state = BoomerangState.RETURNING
         self.change_x = 0
         self.change_y = 0
 
-    def deactivate(self) -> None:#on remet le boomerang dans son état inactif
+    def desactivate(self) -> None:#on remet le boomerang dans son état inactif
         # on ne supprime pas le sprite juste on le rend inactif ce qui est plus facile lorsuq'on veut le réactiver
         super().desactivate()# on le rend invisible et non active
-        self.state = BoomerangState.INACTIVE
-        # il revient au centre du jooueur
+        self.__state = BoomerangState.INACTIVE
+        # il revient au centre du joueur
         self.change_x = 0
         self.change_y = 0
-        self.travelled_distance = 0
+        self.__travelled_distance = 0
 
 
     def update_boomerang(self,player: Player,walls: arcade.SpriteList[arcade.Sprite],enemies:arcade.SpriteList) -> None:
@@ -108,17 +121,17 @@ class Boomerang(Weapon):
             # le boomerang avance tout droit à chaque frame j'ajoute la longueur du déplacement
             self.center_x += self.change_x
             self.center_y += self.change_y
-            # On ajoute la distance parcourue à cette frame
-            self.travelled_distance += sqrt(self.change_x**2 + self.change_y**2)
+            # On ajoute la distance parcourue a cette frame
+            self.__travelled_distance += sqrt(self.change_x**2 + self.change_y**2)
             # si il touche un ennemi il le supprime et il revient
             self.kill_enemies(enemies)
-            # si il touche unu mur il revient aussi
+            # si il touche un mur il revient aussi
             hit_walls = arcade.check_for_collision_with_list(self, walls)
             if hit_walls:
                 self.start_return()
                 return
             # si la distance parcouru atteint la distance maximale parcourable il revient
-            if self.travelled_distance >= self.max_distance:
+            if self.__travelled_distance >= self.max_distance:
                 self.start_return()
                 return
 
@@ -129,7 +142,7 @@ class Boomerang(Weapon):
             distance_to_player = sqrt(dx**2 + dy**2)
             # lorsqu'il est suffisamment proche du joueur on le desactive
             if distance_to_player <= 12:
-                self.deactivate()
+                self.desactivate()
                 return
 
             # on normalise la direction du vecteur entre le joueur et le boomerang
@@ -145,14 +158,13 @@ class Boomerang(Weapon):
                 enemy.remove_from_sprite_lists()
 
 class Sword(Weapon):
-    elapsed_time: float
+    """Arme de mêlée qui frappe dans la direction du joueur pendant une courte durée fixe."""
+
+    __elapsed_time: float
 
     def __init__(self) -> None:
         super().__init__(animation=ANIMATION_SWORD_DOWN,scale=2,)
-
-    def desactivate(self) -> None:
-        super().desactivate()
-        self.elapsed_time = 0
+        self.__elapsed_time = 0
 
     def attack(self, player: Player) -> None:
         # Si l'épée est en train d'être utilisé meme si on appuie sur D ça ne change rien
@@ -161,9 +173,9 @@ class Sword(Weapon):
         # on active ensuite l'epee
         self.active = True
         self.visible = True
-        self.elapsed_time = 0
+        self.__elapsed_time = 0
 
-        # Le sprite de l'épee est centré sur le joueur
+
         self.center_x = player.center_x
         self.center_y = player.center_y
 
@@ -172,6 +184,8 @@ class Sword(Weapon):
         if player.direction == Direction.NORTH:
             self.animation = ANIMATION_SWORD_UP
             self.center_x = player.center_x
+            # le sprite de l'épee n'est pas centré sur le joueur
+            # un peu décalé sinon on ne peut pas tuer
             self.center_y = player.center_y + 0.3*TILE_SIZE
         elif player.direction == Direction.SOUTH:
             self.animation = ANIMATION_SWORD_DOWN
@@ -186,24 +200,19 @@ class Sword(Weapon):
             self.center_x = player.center_x + 0.3*TILE_SIZE
             self.center_y = player.center_y
 
-        # A chaque nouvelle attaque l'animation repart depuis le début
+        # à chaque nouvelle attaque l'animation repart depuis le début
         self.time_counter = 0
         self.cur_frame_idx = 0
 
     def desactivate(self) -> None:# fonction qui quand on l'applique desactive l'epée
         self.active = False
         self.visible = False
-        self.elapsed_time = 0
+        self.__elapsed_time = 0
 
-    def update_sword(self,delta_time: float,enemies: arcade.SpriteList,crystals: arcade.SpriteList[arcade.TextureAnimationSprite],player: Player,crystal_sound : arcade.Sound) -> None:
-        if not self.active:# si l'epée n'est pas active on fait rien
+    def update_sword(self, delta_time: float, enemies: arcade.SpriteList) -> None:
+        if not self.active:
             return
-        self.elapsed_time += delta_time # si elle est active on comptes le temps
-        self.kill_enemies(enemies)# l'épee tue les ennemis touché
-        hit_crystals = arcade.check_for_collision_with_list(self, crystals)# ramasse aussi les crystals
-        for crystal in hit_crystals:
-            crystal.remove_from_sprite_lists()
-            arcade.play_sound(crystal_sound)
-            player.score += 1
-        if self.elapsed_time >= 0.3:# l'épee agit durant 6 frames soit 6*50ms = 300ms = 0.3s
+        self.__elapsed_time += delta_time
+        self.kill_enemies(enemies)
+        if self.__elapsed_time >= 0.3:
             self.desactivate()

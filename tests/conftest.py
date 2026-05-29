@@ -1,4 +1,5 @@
 import sys
+import warnings
 from pathlib import Path
 
 import arcade

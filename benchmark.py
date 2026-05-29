@@ -1,194 +1,158 @@
-from dataclasses import dataclass
-import csv
-from statistics import mean, stdev
-from time import perf_counter
-
-import arcade
-import matplotlib
-
-matplotlib.use("Agg")
+import timeit
 import matplotlib.pyplot as plt
 
 import map as map_module
+import arcade
 from constants import MAX_WINDOW_HEIGHT, MAX_WINDOW_WIDTH, WINDOW_TITLE
 from gameview import GameView
-from map import load_map_from_string
+from map import Map, load_map_from_string
 
 
-LOADING_DENSITIES: list[int] = [1, 2, 3, 4, 5, 7, 10, 14]
-ENEMY_COUNTS: list[int] = [1, 3, 10, 30, 100, 300]
-LOADING_REPEAT_COUNT = 5
-UPDATE_REPEAT_COUNT = 120
+# valeurs de densité testées pour le chargement
+DENSITES: list[int] = [1, 2, 3, 4, 5, 7, 10, 14]
+# nombre de blobs testés pour on_update
+NB_BLOBS_TEST: list[int] = [1, 3, 10, 30, 100, 300]
+# on répète 5 fois pour avoir une moyenne stable
+NB_REPETITIONS: int = 5
+# nombre de frames mesurées pour on_update
+NB_FRAMES: int = 300
+# frames non mesurées avant le benchmark pour que les blobs aient déjà calculé leur premier chemin
+NB_FRAMES_WARMUP: int = 10
 
 
-@dataclass(frozen=True)
-class LoadingResult:
-    density: int
-    node_count: int
-    mean_ms: float
-    stdev_ms: float
-
-
-@dataclass(frozen=True)
-class UpdateResult:
-    enemy_count: int
-    mean_ms: float
-    stdev_ms: float
-
-
-def make_empty_map_text(width: int, height: int) -> str:
-    rows: list[str] = []
+# génère une carte vide entourée de buissons avec le joueur en bas à gauche
+def make_empty_map(width: int, height: int) -> str:
+    lignes: list[str] = []
     for y in range(height - 1, -1, -1):
         if y == 0 or y == height - 1:
-            rows.append("x" * width)
+            lignes.append("x" * width)
         elif y == 1:
-            rows.append("xP" + " " * (width - 3) + "x")
+            lignes.append("xP" + " " * (width - 3) + "x")
         else:
-            rows.append("x" + " " * (width - 2) + "x")
+            lignes.append("x" + " " * (width - 2) + "x")
+    return "width: " + str(width) + "\nheight: " + str(height) + "\n---\n" + "\n".join(lignes) + "\n---"
 
-    return "width: " + str(width) + "\nheight: " + str(height) + "\n---\n" + "\n".join(rows) + "\n---"
 
-
-def make_enemy_map_text(enemy_count: int) -> str:
-    width = max(20, enemy_count + 4)
-    height = 8
-    enemy_positions = set(range(2, enemy_count + 2))
-    rows: list[str] = []
+# génère une carte avec nb_blobs blobs placés sur la ligne y=5
+def make_map_blobs(nb_blobs: int) -> str:
+    # la carte doit être assez large pour contenir tous les blobs
+    width: int = max(20, nb_blobs + 4)
+    height: int = 8
+    positions_blobs: set[int] = set(range(2, nb_blobs + 2))
+    lignes: list[str] = []
 
     for y in range(height - 1, -1, -1):
         if y == 0 or y == height - 1:
-            rows.append("x" * width)
+            lignes.append("x" * width)
         elif y == 1:
-            rows.append("xP" + " " * (width - 3) + "x")
+            lignes.append("xP" + " " * (width - 3) + "x")
         elif y == 5:
-            middle = "".join("v" if x in enemy_positions else " " for x in range(1, width - 1))
-            rows.append("x" + middle + "x")
+            ligne_blobs: str = ""
+            for x in range(1, width - 1):
+                if x in positions_blobs:
+                    ligne_blobs += "b"
+                else:
+                    ligne_blobs += " "
+            lignes.append("x" + ligne_blobs + "x")
         else:
-            rows.append("x" + " " * (width - 2) + "x")
+            lignes.append("x" + " " * (width - 2) + "x")
 
-    return "width: " + str(width) + "\nheight: " + str(height) + "\n---\n" + "\n".join(rows) + "\n---"
-
-
-def measure_loading() -> list[LoadingResult]:
-    results: list[LoadingResult] = []
-    original_density = map_module.NAVMESH_DENSITY
-    map_text = make_empty_map_text(20, 20)
-
-    for density in LOADING_DENSITIES:
-        map_module.NAVMESH_DENSITY = density
-        durations: list[float] = []
-        node_count = 0
-
-        for _ in range(LOADING_REPEAT_COUNT):
-            start = perf_counter()
-            game_map = load_map_from_string(map_text)
-            durations.append((perf_counter() - start) * 1000)
-            node_count = len(game_map.navmesh.nodes)
-
-        results.append(
-            LoadingResult(
-                density=density,
-                node_count=node_count,
-                mean_ms=mean(durations),
-                stdev_ms=stdev(durations),
-            )
-        )
-
-    map_module.NAVMESH_DENSITY = original_density
-    return results
+    return "width: " + str(width) + "\nheight: " + str(height) + "\n---\n" + "\n".join(lignes) + "\n---"
 
 
-def measure_update() -> list[UpdateResult]:
-    results: list[UpdateResult] = []
-    window = arcade.Window(MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, WINDOW_TITLE, visible=False)
+def mesurer_chargement() -> list[tuple[int, int, float]]:
+    resultats: list[tuple[int, int, float]] = []
+    densite_initiale: int = map_module.NAVMESH_DENSITY
+    texte_carte: str = make_empty_map(20, 20)
 
-    try:
-        for enemy_count in ENEMY_COUNTS:
-            game_map = load_map_from_string(make_enemy_map_text(enemy_count))
-            view = GameView(game_map)
-            window.show_view(view)
+    for densite in DENSITES:
+        map_module.NAVMESH_DENSITY = densite
 
-            durations: list[float] = []
-            for _ in range(UPDATE_REPEAT_COUNT):
-                start = perf_counter()
-                view.on_update(1 / 60)
-                durations.append((perf_counter() - start) * 1000)
+        # on mesure le temps de chargement avec timeit sur NB_REPETITIONS répétitions
+        temps_total: float = timeit.timeit(lambda: load_map_from_string(texte_carte), number=NB_REPETITIONS)
+        temps_moyen_ms: float = temps_total / NB_REPETITIONS * 1000
 
-            results.append(
-                UpdateResult(
-                    enemy_count=enemy_count,
-                    mean_ms=mean(durations),
-                    stdev_ms=stdev(durations),
-                )
-            )
-    finally:
-        window.close()
+        # on charge une fois de plus juste pour compter les noeuds
+        carte: Map = load_map_from_string(texte_carte)
+        nb_noeuds: int = len(carte.navmesh.nodes)
 
-    return results
+        resultats.append((densite, nb_noeuds, temps_moyen_ms))
+
+    # on remet la densité d'origine pour ne pas affecter le reste du programme
+    map_module.NAVMESH_DENSITY = densite_initiale
+    return resultats
 
 
-def write_csv(loading_results: list[LoadingResult], update_results: list[UpdateResult]) -> None:
-    with open("benchmarks.csv", "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["benchmark", "parameter", "node_count", "mean_ms", "stdev_ms"])
+def mesurer_update() -> list[tuple[int, float]]:
+    resultats: list[tuple[int, float]] = []
+    fenetre: arcade.Window = arcade.Window(MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, WINDOW_TITLE, visible=False)
 
-        for result in loading_results:
-            writer.writerow(
-                [
-                    "loading_by_navmesh_density",
-                    result.density,
-                    result.node_count,
-                    f"{result.mean_ms:.3f}",
-                    f"{result.stdev_ms:.3f}",
-                ]
-            )
+    for nb_blobs in NB_BLOBS_TEST:
+        carte: Map = load_map_from_string(make_map_blobs(nb_blobs))
+        vue: GameView = GameView(carte)
+        fenetre.show_view(vue)
 
-        for result in update_results:
-            writer.writerow(
-                [
-                    "update_by_enemy_count",
-                    result.enemy_count,
-                    "",
-                    f"{result.mean_ms:.3f}",
-                    f"{result.stdev_ms:.3f}",
-                ]
-            )
+        # on laisse les blobs calculer leur premier chemin avant de mesurer
+        for i in range(NB_FRAMES_WARMUP):
+            vue.on_update(1 / 60)
+
+        # on mesure le temps moyen d'une frame sur NB_FRAMES frames
+        temps_total: float = timeit.timeit(lambda: vue.on_update(1 / 60), number=NB_FRAMES)
+        temps_moyen_ms: float = temps_total / NB_FRAMES * 1000
+
+        resultats.append((nb_blobs, temps_moyen_ms))
+
+    fenetre.close()
+    return resultats
 
 
-def draw_graphs(loading_results: list[LoadingResult], update_results: list[UpdateResult]) -> None:
+def afficher_resultats(resultats_chargement: list[tuple[int, int, float]], resultats_update: list[tuple[int, float]]) -> None:
+    print("Chargement (NAVMESH_DENSITY fixé à n, carte 20x20)")
+    for resultat in resultats_chargement:
+        print("n =", resultat[0], "| nb noeuds =", resultat[1], "| temps moyen =", round(resultat[2], 3), "ms")
+
+    print()
+    print("on_update (nombre de blobs k)")
+    for resultat in resultats_update:
+        print("k =", resultat[0], "| temps moyen =", round(resultat[1], 3), "ms")
+
+
+def tracer_graphiques(resultats_chargement: list[tuple[int, int, float]], resultats_update: list[tuple[int, float]]) -> None:
+    liste_densites: list[int] = []
+    temps_chargement: list[float] = []
+    for resultat in resultats_chargement:
+        liste_densites.append(resultat[0])
+        temps_chargement.append(resultat[2])
+
+    liste_nb_blobs: list[int] = []
+    temps_update: list[float] = []
+    for resultat in resultats_update:
+        liste_nb_blobs.append(resultat[0])
+        temps_update.append(resultat[1])
+
     figure, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    axes[0].plot(
-        [result.density for result in loading_results],
-        [result.mean_ms for result in loading_results],
-        marker="o",
-    )
+    axes[0].plot(liste_densites, temps_chargement, marker="o")
     axes[0].set_title("Chargement selon NAVMESH_DENSITY")
     axes[0].set_xlabel("NAVMESH_DENSITY")
     axes[0].set_ylabel("Temps moyen (ms)")
     axes[0].grid(True)
 
-    axes[1].plot(
-        [result.enemy_count for result in update_results],
-        [result.mean_ms for result in update_results],
-        marker="o",
-    )
-    axes[1].set_title("on_update selon le nombre d'ennemis")
-    axes[1].set_xlabel("Nombre d'ennemis")
+    axes[1].plot(liste_nb_blobs, temps_update, marker="o")
+    axes[1].set_title("on_update selon le nombre de blobs")
+    axes[1].set_xlabel("Nombre de blobs")
     axes[1].set_ylabel("Temps moyen par frame (ms)")
     axes[1].grid(True)
 
-    figure.tight_layout()
-    figure.savefig("benchmarks.png", dpi=150)
-    plt.close(figure)
+    figure.savefig("benchmarks.png")
 
 
 def main() -> None:
-    loading_results = measure_loading()
-    update_results = measure_update()
-    write_csv(loading_results, update_results)
-    draw_graphs(loading_results, update_results)
-    print("Benchmarks termines: benchmarks.csv et benchmarks.png crees.")
+    resultats_chargement: list[tuple[int, int, float]] = mesurer_chargement()
+    resultats_update: list[tuple[int, float]] = mesurer_update()
+    afficher_resultats(resultats_chargement, resultats_update)
+    tracer_graphiques(resultats_chargement, resultats_update)
+    print("Graphique sauvegarde dans benchmarks.png")
 
 
 if __name__ == "__main__":

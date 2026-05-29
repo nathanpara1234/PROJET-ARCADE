@@ -3,40 +3,44 @@ from math import cos, sin, sqrt
 import random
 import arcade
 from abc import abstractmethod
+from typing import Final
 from textures import ANIMATION_BAT, ANIMATION_BLOB, ANIMATION_SPINNER
 from constants import SPINNER_SPEED, SCALE, TILE_SIZE, BAT_MOUVEMENT_SPEED, MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT, BAT_FRAQUENCY_MODIF_DIRECTION, BLOB_MOUVEMENT_SPEED, BAT_ZONE_WIDTH, BLOB_ZONE_WIDTH
 import math
 from player import Player
-from map import (
-    Map,
-    GridCell,
-    SpinnerData
-)
 
 class SpinnerSprite(arcade.TextureAnimationSprite):
-    """Sprite ennemi qui se deplace en ligne droite entre deux bornes."""
+    """Ennemi qui fait des allers-retours entre deux bornes fixes sur un axe."""
 
-    is_horizontal: bool
-    min_pos: float
-    max_pos: float
+    is_horizontal: Final[bool]
+    min_pos: Final[float]
+    max_pos: Final[float]
     change_x: float
     change_y: float
 
+    def __init__(self, center_x: float, center_y: float, is_horizontal: bool, min_pos: float, max_pos: float) -> None:
+        super().__init__(
+            animation=ANIMATION_SPINNER,
+            scale=SCALE,
+            center_x=center_x,
+            center_y=center_y,
+        )
+        self.is_horizontal = is_horizontal
+        self.min_pos = min_pos
+        self.max_pos = max_pos
+        self.change_x = SPINNER_SPEED if is_horizontal else 0
+        self.change_y = 0 if is_horizontal else SPINNER_SPEED
 
     def bounce(self, pos: float, speed: float) -> tuple[float, float]:
         # demi tour si le spinner atteint une limite, sinon il continu
-        # pos cest le x ou le y
         if pos >= self.max_pos:
-            return (self.max_pos,
-                    -SPINNER_SPEED)
+            return (self.max_pos, -SPINNER_SPEED)
         elif pos <= self.min_pos:
-            return (self.min_pos,
-                    SPINNER_SPEED)
-        return (pos,
-        speed)
+            return (self.min_pos, SPINNER_SPEED)
+        return (pos, speed)
 
     def spinner_move(self) -> None:
-        # déplace le spinner puis vérifie s'il doit faire demi tour
+        # deplace le spinner puis verifie s'il doit faire demi tour
         self.center_x += self.change_x
         self.center_y += self.change_y
 
@@ -45,73 +49,43 @@ class SpinnerSprite(arcade.TextureAnimationSprite):
         else:
             (self.center_y, self.change_y) = self.bounce(self.center_y, self.change_y)
 
-# Calcule les bornes gauche/droite d'un spinner horizontal, jusqu'aux buissons.
-def compute_horizontal_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-    left_x = start_x# on initialise la limite à gauche
-    i = start_x - 1
-    while i >= 0: # on verifie si la case est dans la map
-        if game_map.get(i, start_y) == GridCell.BUSH:# on test si il rencontre un buisson
-            break
-        left_x = i# si non, on maj la nouvelle limite qui est i
-        i -= 1# on decale et on resteste
-
-    right_x = start_x
-    i = start_x + 1
-    while i < game_map.width:
-        if game_map.get(i, start_y) == GridCell.BUSH:
-            break
-        right_x = i
-        i += 1
-
-    return (left_x, right_x)
-
-
-# Calcule les bornes bas/haut d'un spinner vertical, jusqu'aux buissons.
-def compute_vertical_spinner_limits(game_map: Map, start_x: int, start_y: int) -> tuple[int, int]:
-    bottom_y = start_y
-    i = start_y - 1
-    while i >= 0:
-        if game_map.get(start_x, i) == GridCell.BUSH:
-            break
-        bottom_y = i
-        i -= 1
-
-    top_y = start_y
-    i = start_y + 1
-    while i < game_map.height:
-        if game_map.get(start_x, i) == GridCell.BUSH:
-            break
-        top_y = i
-        i += 1
-
-    return (bottom_y, top_y)
-
 
 class Enemy(arcade.TextureAnimationSprite):
-    @abstractmethod
-    def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
-        ...
+    """Classe de base pour les ennemis intelligents (Bat, Blob),
+    SpinnerSprite n'en hérite pas car son déplacement est constant"""
 
+    # position de départ et taille du monde, communs à tous les ennemis
+    start_x: Final[int]
+    start_y: Final[int]
+    world_width: Final[int]
+    world_height: Final[int]
 
-class Bat(Enemy):
-    direction: float
-    start_x: int
-    start_y: int
-    world_width: int
-    world_height: int
-
-    def __init__(self, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
+    def __init__(self, animation: arcade.TextureAnimation, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
         super().__init__(
-            animation=ANIMATION_BAT,
+            animation=animation,
             scale=SCALE,
             center_x=start_x,
             center_y=start_y,
         )
-        self.direction = random.uniform(0, 360)
         self.start_x = start_x
         self.start_y = start_y
         self.world_width = world_width
         self.world_height = world_height
+
+    @abstractmethod
+    def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
+        #Déplace l'ennemi d'une frame.
+        ...
+
+
+class Bat(Enemy):
+    """Ennemi qui se déplace aléatoirement dans un rayon fixe autour de sa position de départ."""
+
+    direction: float
+
+    def __init__(self, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
+        super().__init__(ANIMATION_BAT, start_x, start_y, world_width, world_height)
+        self.direction = random.uniform(0, 360)
 
     def valid_pos(self, x: float, y: float) -> bool:
         min_x = max(TILE_SIZE, self.start_x - BAT_ZONE_WIDTH)             # bord gauche : au moins TILE_SIZE du mur (pour pas qu'elle soit en dehors de la map)
@@ -142,26 +116,17 @@ class Bat(Enemy):
             self.direction = (self.direction + random.uniform(135, 225)) % 360# definit langle de deviation du bat
 
 class Blob(Enemy):
+    """Ennemi qui suit le joueur via Dijkstra sur le navmesh quand il le voit, sinon erre aléatoirement."""
+
     target_x: float
     target_y: float
-    start_x: float
-    start_y: float
     path : list
     i : int
 
     def __init__(self, start_x: int, start_y: int, world_width: int, world_height: int) -> None:
-        super().__init__(
-            animation=ANIMATION_BLOB,
-            scale=SCALE,
-            center_x=start_x,
-            center_y=start_y,
-        )
+        super().__init__(ANIMATION_BLOB, start_x, start_y, world_width, world_height)
         self.target_x = start_x
         self.target_y = start_y
-        self.start_x = start_x
-        self.start_y = start_y
-        self.world_width = world_width
-        self.world_height = world_height
         self.path = []
         self.i = 0
     @staticmethod
@@ -214,7 +179,7 @@ class Blob(Enemy):
                     break
 
     def move(self, navmesh: nx.Graph, player_pos: tuple[float, float] | None) -> None:
-        #Sécurité : si on n'a pas de chemin
+        # si on n'a pas de chemin
         if self.i >= len(self.path):
             self.new_target(navmesh, None)
             return
@@ -230,17 +195,17 @@ class Blob(Enemy):
             if player_pos is not None:
                 # si le jouuer est dans la zone, on calcule une nouvelle position
                 self.new_target(navmesh, player_pos)
-                # On met self.i = 1 dans new_target pour ne pas revenir sur ce noeud
+                # on met self.i = 1 dans new_target pour ne pas revenir sur ce noeud
                 self.i = 1
             else:
 
                 if self.i >= len(self.path) - 1:
-                    # Arrivé au bout de la patrouille, on en cherche une nouvelle cible aléatoire
+                    # à la cible, on en cherche une nouvelle cible aléatoire
                     self.new_target(navmesh, None)
                 else:
-                    # On passe simplement au point suivant
+                    #  sinon on passe simplement au point suivant
                     self.i += 1
-            return # On s'arrête là pour cette frame pour éviter de bouger deux fois
+            return # on s'arrête là pour cette frame pour éviter de bouger deux fois
 
         # avance (seulement si on n'est pas sur un noeud)
         cos_move = distance_x / distance_minimale

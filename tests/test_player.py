@@ -1,6 +1,7 @@
 import arcade
 
 from constants import PLAYER_MOVEMENT_SPEED, TILE_SIZE
+
 from gameview import GameView
 from map import load_map_from_string
 from player import Direction
@@ -97,3 +98,21 @@ def test_camera_is_clamped_inside_world(window: arcade.Window) -> None:
         view.world_width - window.width / 2,
         view.world_height - window.height / 2,
     )
+
+
+
+def test_player_becomes_indestructible(window: arcade.Window) -> None:
+    """Verifie que player_become_indestructible rend bien le joueur invincible"""
+    view = make_open_view(window)
+    assert not view.player.indestructible
+    view.player.player_become_indestructible()
+    assert view.player.indestructible
+
+
+def test_invincibility_ends_after_timer(window: arcade.Window) -> None:
+    """Verifie que l'invincibilite finit par s'arreter"""
+    view = make_open_view(window)
+    view.player.player_become_indestructible()
+    for i in range(10001):  # INDESTRUCTIBILITY_DURATION vaut 10000
+        view.player.update_invincibility()
+    assert not view.player.indestructible
